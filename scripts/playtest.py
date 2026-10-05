@@ -5,7 +5,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-URL = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8793/?v=lh3"
+URL = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8793/?v=lh4"
 OUT = Path(__file__).resolve().parents[1] / "docs" / "lh1"
 
 
@@ -15,10 +15,10 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch(channel="chrome", headless=True)
         page = browser.new_page(viewport={"width": 390, "height": 844})
-        page.set_default_timeout(120000)
+        page.set_default_timeout(300000)
         page.on("pageerror", lambda err: errors.append(str(err)))
         page.goto(URL, wait_until="networkidle")
-        page.wait_for_function("() => window.__hop && window.__hop.build === 'lh3'")
+        page.wait_for_function("() => window.__hop && window.__hop.build === 'lh4'")
         result = page.evaluate("() => window.__hop.selfTest()")
         (OUT / "selftest.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
         print(json.dumps(result["report"]))
@@ -51,6 +51,21 @@ def main():
         page.wait_for_function("() => window.__hop.snapshot().x > 1520", timeout=25000)
         page.wait_for_timeout(250)
         page.screenshot(path=str(OUT / "duck-390.png"))
+        page.evaluate("() => window.__hop.start('4-1')")
+        page.evaluate("() => window.__hop.setBot(true)")
+        page.wait_for_function("() => window.__hop.snapshot().x > 700", timeout=25000)
+        page.wait_for_timeout(250)
+        page.screenshot(path=str(OUT / "cedar-390.png"))
+        page.evaluate("() => window.__hop.start('5-1')")
+        page.evaluate("() => window.__hop.setBot(true)")
+        page.wait_for_function("() => window.__hop.snapshot().x > 700", timeout=25000)
+        page.wait_for_timeout(250)
+        page.screenshot(path=str(OUT / "goose-390.png"))
+        page.evaluate("() => window.__hop.start('9-1')")
+        page.evaluate("() => window.__hop.setBot(true)")
+        page.wait_for_function("() => window.__hop.snapshot().x > 700", timeout=25000)
+        page.wait_for_timeout(250)
+        page.screenshot(path=str(OUT / "mason-390.png"))
         page.evaluate("() => window.__hop.setBot(false)")
         page.click("#btn-pause")
         page.click("#btn-quit")
@@ -58,7 +73,7 @@ def main():
         page.click("#btn-map-title")
         page.click("#btn-notes")
         notes = page.inner_text("#screen-notes")
-        if "lh3" not in notes or "Unofficial" not in notes or "No wallet" not in notes:
+        if "lh4" not in notes or "Unofficial" not in notes or "No wallet" not in notes:
             errors.append("notes missing fan line or build")
         page.click("#btn-notes-back")
         page.click("#btn-story")

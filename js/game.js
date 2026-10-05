@@ -1,5 +1,5 @@
-/* Bober Lodge Hop lh3 — original bank hop. No borrowed characters or tunes. */
-const BUILD = 'lh3';
+/* Bober Lodge Hop lh4 — original bank hop. No borrowed characters or tunes. */
+const BUILD = 'lh4';
 const TILE = 32;
 let VIEW_W = 224;
 let VIEW_H = 360;
@@ -19,20 +19,31 @@ const SAVE_KEY = 'bober-lodge-hop-v1';
 const SOLID = new Set(['#', 'B', '?', '!', 'S', 'u']);
 
 const THEMES = {
-  bank: { sky: ['#8fd4f8', '#e7f7ff'], hill: '#67b85a', hill2: '#3e8f4a', water: '#3aa0c8', night: false },
-  mill: { sky: ['#f2c48a', '#f8e2c4'], hill: '#c4845a', hill2: '#8a5a3a', water: '#3a88a8', night: false },
-  spill: { sky: ['#7ec8d4', '#d7f4ef'], hill: '#3e8f78', hill2: '#1f6a62', water: '#1a7e96', night: false },
-  night: { sky: ['#14243c', '#3d5c7a'], hill: '#1b3a38', hill2: '#122828', water: '#14384a', night: true }
+  bank: { sky: ['#8fd4f8', '#e7f7ff'], hill: '#67b85a', hill2: '#3e8f4a', water: '#3aa0c8', night: false, tree: 'pine' },
+  mill: { sky: ['#f2c48a', '#f8e2c4'], hill: '#c4845a', hill2: '#8a5a3a', water: '#3a88a8', night: false, tree: 'pine' },
+  spill: { sky: ['#7ec8d4', '#d7f4ef'], hill: '#3e8f78', hill2: '#1f6a62', water: '#1a7e96', night: false, tree: 'pine' },
+  night: { sky: ['#14243c', '#3d5c7a'], hill: '#1b3a38', hill2: '#122828', water: '#14384a', night: true, tree: 'pine' },
+  cedar: { sky: ['#6ea8c4', '#d5ead0'], hill: '#2f6a48', hill2: '#1d4a34', water: '#2a7a78', night: false, tree: 'cedar' },
+  reed: { sky: ['#9fd4c8', '#e7f6ea'], hill: '#3e8f55', hill2: '#2a6a40', water: '#3aa0c8', night: false, tree: 'reed' },
+  kiln: { sky: ['#e7b07a', '#f6ddb8'], hill: '#a86848', hill2: '#6a4030', water: '#3a88a8', night: false, tree: 'pine' },
+  rope: { sky: ['#e7b07a', '#f8e6c8'], hill: '#8a5a3a', hill2: '#5c3a2a', water: '#2a6a78', night: false, tree: 'pine' },
+  frost: { sky: ['#c5dff2', '#f4f7fb'], hill: '#d5e4ee', hill2: '#8fb4c8', water: '#7eb6d4', night: false, tree: 'frost', snow: true },
+  dam: { sky: ['#e39b78', '#f6d2b4'], hill: '#8a4030', hill2: '#5c2a22', water: '#2a6890', night: false, tree: 'cedar' },
+  source: { sky: ['#f2c48a', '#8fd4f8'], hill: '#2f6a48', hill2: '#1a3a28', water: '#3aa0c8', night: false, tree: 'pine' }
 };
 
 const canvas = document.getElementById('view');
 const ctx = canvas.getContext('2d');
 
 const ART = {};
-const FOOT = { bober: 0.661, cap: 0.652, sap: 0.391, kit: 0.594, duck: 0.417, lockjaw: 0.522 };
+const FOOT = {
+  bober: 0.661, cap: 0.652, sap: 0.391, kit: 0.594, duck: 0.417, lockjaw: 0.522,
+  leaper: 0.329, goose: 0.409, nipper: 0.601, icer: 0.541, mason: 0.600
+};
 
 function loadArt() {
-  ['bober', 'cap', 'sap', 'kit', 'loghead', 'duck', 'lockjaw', 'pine', 'acorn', 'bell', 'grass', 'brick', 'bark'].forEach((name) => {
+  ['bober', 'cap', 'sap', 'kit', 'loghead', 'duck', 'lockjaw', 'pine', 'acorn', 'bell', 'grass', 'brick', 'bark',
+    'leaper', 'goose', 'nipper', 'tumbler', 'icer', 'mason', 'cedar', 'reed', 'frost'].forEach((name) => {
     const img = new Image();
     img.src = 'assets/sprites/' + name + '.png?v=' + BUILD;
     ART[name] = img;
@@ -43,16 +54,19 @@ function artReady(img) {
   return !!(img && img.complete && img.naturalWidth > 0);
 }
 
-function blit(name, cx, footY, dw, dh, face, squash) {
+function blit(name, cx, footY, dw, dh, face, squash, motion) {
   const img = ART[name];
   if (!artReady(img)) return false;
   const foot = FOOT[name] || 0.5;
+  const m = motion || {};
   ctx.save();
   ctx.translate(cx, footY);
   ctx.fillStyle = 'rgba(26,16,40,0.16)';
   ctx.beginPath();
   ctx.ellipse(0, -1, Math.min(12, dw * 0.18), 2.2, 0, 0, Math.PI * 2);
   ctx.fill();
+  ctx.translate(0, m.bob || 0);
+  ctx.rotate(m.lean || 0);
   ctx.scale(face || 1, 1);
   const s = squash || 0;
   ctx.scale(1 + s * 0.35, 1 - s * 0.22);
@@ -80,6 +94,8 @@ function layoutView() {
 
 const held = { left: false, right: false, jump: false, spit: false, down: false };
 const pressed = { jump: false, spit: false };
+let lastDir = 1;
+let dirGrace = 0;
 let audioCtx = null;
 let soundOn = true;
 let save = { v: 1, unlocked: 0, cleared: {}, bank: 0, sound: true };
@@ -92,10 +108,15 @@ let acc = 0;
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
 function themeFor(def) {
+  if (def.theme && THEMES[def.theme]) return THEMES[def.theme];
   if (def.id === '3-2') return THEMES.night;
   if (def.id === '3-1') return THEMES.spill;
   if (def.world === 2) return THEMES.mill;
   return THEMES.bank;
+}
+
+function hostileShot(s) {
+  return s.from === 'duck' || s.from === 'goose' || s.from === 'mason';
 }
 
 function loadSave() {
@@ -262,7 +283,7 @@ function makePlayer(x, foot) {
     vx: 0, vy: 0, face: 1, form: 'small',
     grounded: false, coyote: 0, buffer: 0, invuln: 0,
     run: 0, squash: 0, ride: -1, prevBottom: foot,
-    falling: false, spitCool: 0, wasGround: false
+    falling: false, spitCool: 0, wasGround: false, hop: 0, dustMark: -1
   };
 }
 
@@ -271,22 +292,38 @@ function makeEnemy(kind, x, foot) {
     kit: { w: 26, h: 26, speed: 46 },
     roller: { w: 30, h: 26, speed: 40 },
     duck: { w: 30, h: 28, speed: 0 },
+    leaper: { w: 26, h: 26, speed: 62 },
+    goose: { w: 34, h: 34, speed: 0 },
+    nipper: { w: 26, h: 24, speed: 78 },
+    tumbler: { w: 30, h: 26, speed: 36 },
+    icer: { w: 26, h: 24, speed: 90 },
+    mason: { w: 28, h: 28, speed: 0 },
     boss: { w: 52, h: 56, speed: 52 }
   }[kind];
+  const still = kind === 'duck' || kind === 'goose' || kind === 'mason';
+  let cool = 1.6;
+  if (kind === 'duck') cool = 1.4;
+  else if (kind === 'goose') cool = 0.9;
+  else if (kind === 'mason') cool = 1.3;
+  else if (kind === 'leaper') cool = 0.7;
   return {
     kind: kind,
     x: x,
     y: foot - spec.h,
     w: spec.w,
     h: spec.h,
-    vx: kind === 'duck' ? 0 : spec.speed,
+    vx: still ? 0 : spec.speed,
     vy: 0,
     speed: spec.speed,
-    face: kind === 'duck' ? -1 : 1,
+    face: still ? -1 : 1,
     alive: true,
     state: 'walk',
     hp: kind === 'boss' ? 3 : 1,
-    cool: kind === 'duck' ? 1.4 : 1.6,
+    maxHp: kind === 'boss' ? 3 : 1,
+    cool: cool,
+    arm: 0,
+    hopV: -380,
+    hopEvery: 2.6,
     invuln: 0,
     grounded: false
   };
@@ -319,8 +356,35 @@ function createState(id, opts) {
       } else if (c === 'D') {
         enemies.push(makeEnemy('duck', px + 1, foot));
         rows[y][x] = '.';
+      } else if (c === 'L') {
+        enemies.push(makeEnemy('leaper', px + 3, foot));
+        rows[y][x] = '.';
+      } else if (c === 'G') {
+        enemies.push(makeEnemy('goose', px + 1, foot));
+        rows[y][x] = '.';
+      } else if (c === 'N') {
+        enemies.push(makeEnemy('nipper', px + 2, foot));
+        rows[y][x] = '.';
+      } else if (c === 'T') {
+        enemies.push(makeEnemy('tumbler', px + 1, foot));
+        rows[y][x] = '.';
+      } else if (c === 'I') {
+        enemies.push(makeEnemy('icer', px + 1, foot));
+        rows[y][x] = '.';
+      } else if (c === 'Q') {
+        enemies.push(makeEnemy('mason', px + 1, foot));
+        rows[y][x] = '.';
       } else if (c === 'J') {
-        enemies.push(makeEnemy('boss', px - 10, foot));
+        const boss = makeEnemy('boss', px - 10, foot);
+        boss.hp = def.bossHp || 3;
+        boss.maxHp = boss.hp;
+        if (def.bossSpeed) {
+          boss.speed = def.bossSpeed;
+          boss.vx = def.bossSpeed;
+        }
+        if (def.bossHop) boss.hopV = def.bossHop;
+        if (def.bossEvery) boss.hopEvery = def.bossEvery;
+        enemies.push(boss);
         rows[y][x] = '.';
       } else if (c === 'F') {
         pole = { x: px + 4, y: foot - TILE * 5, w: 24, h: TILE * 5 };
@@ -564,7 +628,7 @@ function stepPlayer(state, input) {
   const accel = p.grounded ? ACC : ACC * 0.72;
   if (input.left) p.vx -= accel * STEP;
   else if (input.right) p.vx += accel * STEP;
-  else {
+  else if (p.grounded) {
     const s = Math.sign(p.vx);
     if (s !== 0) {
       p.vx -= s * FRIC * STEP;
@@ -581,7 +645,10 @@ function stepPlayer(state, input) {
     p.coyote = 0;
     p.buffer = 0;
     p.ride = -1;
+    p.hop = 0.16;
     sfxJump();
+  } else if (p.hop > 0) {
+    p.hop -= STEP;
   } else if (!input.jump && p.vy < JUMP_CUT) {
     p.vy = JUMP_CUT;
   }
@@ -604,35 +671,91 @@ function stepPlayer(state, input) {
   p.wasGround = p.grounded;
   if (hit.ceiling) tryHit(state, hit.ceiling.tx, hit.ceiling.ty);
   if (p.grounded && Math.abs(p.vx) > 24) p.run += STEP * 12;
+  if (p.grounded && Math.abs(p.vx) > 50) {
+    const mark = Math.floor(p.run * 2);
+    if (mark !== p.dustMark) {
+      p.dustMark = mark;
+      state.parts.push({
+        x: p.x + p.w / 2,
+        y: p.y + p.h,
+        vx: -p.face * 28,
+        vy: -26,
+        life: 0.22,
+        color: state.theme.snow ? '#f4f8fc' : '#c4a574',
+        r: 2.2
+      });
+    }
+  }
   if (input.spitPressed) doSpit(state);
+}
+
+function pushShot(state, e, speed, w, h, from, life) {
+  state.shots.push({
+    x: e.face < 0 ? e.x - w + 2 : e.x + e.w,
+    y: e.y + 8,
+    w: w,
+    h: h,
+    vx: (e.face || -1) * speed,
+    vy: 0,
+    life: life,
+    from: from,
+    dead: false
+  });
 }
 
 function stepEnemy(state, e) {
   if (!e.alive) return;
   e.invuln = Math.max(0, e.invuln - STEP);
-  if (e.kind === 'duck') {
+  if (e.kind === 'duck' || e.kind === 'goose' || e.kind === 'mason') {
     e.cool -= STEP;
     if (e.cool <= 0) {
-      e.cool = 2.05;
-      state.shots.push({
-        x: e.face < 0 ? e.x - 10 : e.x + e.w,
-        y: e.y + 8,
-        w: 12, h: 12,
-        vx: e.face * 110,
-        vy: 0,
-        life: 2.4,
-        from: 'duck',
-        dead: false
-      });
+      if (e.kind === 'duck') {
+        e.cool = 2.05;
+        pushShot(state, e, 110, 12, 12, 'duck', 2.4);
+      } else if (e.kind === 'goose') {
+        e.cool = 1.45;
+        pushShot(state, e, 128, 13, 13, 'goose', 2.0);
+      } else {
+        e.cool = 1.8;
+        pushShot(state, e, 126, 14, 10, 'mason', 2.2);
+      }
     }
     return;
   }
   if (e.kind === 'boss' && e.grounded) {
     e.cool -= STEP;
     if (e.cool <= 0) {
-      e.vy = -380;
+      e.vy = e.hopV || -380;
       e.grounded = false;
-      e.cool = 2.6;
+      e.cool = e.hopEvery || 2.6;
+    }
+  }
+  if (e.kind === 'nipper') {
+    const dx = (state.player.x + state.player.w / 2) - (e.x + e.w / 2);
+    if (Math.abs(dx) < 160 && Math.abs(state.player.y - e.y) < 52) {
+      e.vx = Math.sign(dx || 1) * (e.speed || 60);
+      e.face = Math.sign(e.vx) || e.face;
+    }
+  }
+  if (e.kind === 'leaper' && e.grounded && e.state !== 'roll') {
+    e.cool -= STEP;
+    const dir = Math.sign(e.vx) || e.face || 1;
+    const ahead = hasSupport(state, e.x + e.w / 2 + dir * 28, e.y + e.h + 4);
+    if (e.cool <= 0 && ahead) {
+      e.vy = -300;
+      e.grounded = false;
+      e.cool = 1.25;
+    } else if (e.cool <= 0) e.cool = 0.35;
+  }
+  if (e.kind === 'tumbler' && e.state !== 'roll') {
+    const dx = (state.player.x + state.player.w / 2) - (e.x + e.w / 2);
+    const close = Math.abs(dx) < 78 && Math.abs(state.player.y - e.y) < 48;
+    e.arm = close ? (e.arm || 0) + STEP : 0;
+    if (e.arm > 0.48) {
+      e.state = 'roll';
+      e.vx = Math.sign(dx || -1) * 170;
+      e.face = Math.sign(e.vx) || -1;
+      e.speed = 170;
     }
   }
   if (e.state !== 'roll') {
@@ -736,7 +859,7 @@ function interact(state) {
       p.ride = -1;
       sfxStomp();
       if (e.kind === 'boss') damageBoss(state, e);
-      else if (e.kind === 'roller' && e.state !== 'roll') {
+      else if ((e.kind === 'roller' || e.kind === 'tumbler') && e.state !== 'roll') {
         e.state = 'roll';
         e.vx = (p.x + p.w / 2 < e.x + e.w / 2 ? 1 : -1) * 250;
         e.face = Math.sign(e.vx);
@@ -760,7 +883,7 @@ function interact(state) {
   for (let i = 0; i < state.shots.length; i++) {
     const s = state.shots[i];
     if (s.dead) continue;
-    if (s.from === 'duck' && state.mode === 'play' && overlap(s, p)) {
+    if (hostileShot(s) && state.mode === 'play' && overlap(s, p)) {
       s.dead = true;
       hurt(state);
       continue;
@@ -771,7 +894,7 @@ function interact(state) {
       if (!e.alive || !overlap(s, e)) continue;
       s.dead = true;
       if (e.kind === 'boss') damageBoss(state, e);
-      else if (e.kind === 'roller' && e.state !== 'roll') {
+      else if ((e.kind === 'roller' || e.kind === 'tumbler') && e.state !== 'roll') {
         e.state = 'roll';
         e.vx = Math.sign(s.vx) * 250 || 250;
         e.face = Math.sign(e.vx);
@@ -784,7 +907,7 @@ function interact(state) {
   }
   for (let i = 0; i < state.enemies.length; i++) {
     const e = state.enemies[i];
-    if (!e.alive || e.kind !== 'roller' || e.state !== 'roll') continue;
+    if (!e.alive || (e.kind !== 'roller' && e.kind !== 'tumbler') || e.state !== 'roll') continue;
     for (let j = 0; j < state.enemies.length; j++) {
       const o = state.enemies[j];
       if (o === e || !o.alive || o.kind === 'boss') continue;
@@ -902,7 +1025,7 @@ function botInput(state) {
       }
       for (let i = 0; i < state.shots.length; i++) {
         const s = state.shots[i];
-        if (s.from !== 'duck' || s.dead) continue;
+        if (!hostileShot(s) || s.dead) continue;
         const dx = s.x - (p.x + p.w);
         if (dx > -12 && dx < 110 && Math.abs(s.y - p.y) < 46) want = true;
       }
@@ -1043,8 +1166,8 @@ function treeLineY(state) {
   return bestY * TILE;
 }
 
-function drawPine(x, base, h, dark, light) {
-  const img = ART.pine;
+function drawPine(x, base, h, dark, light, name) {
+  const img = ART[name] || ART.pine;
   if (artReady(img)) {
     const dh = h;
     const dw = dh * (img.naturalWidth / img.naturalHeight);
@@ -1122,10 +1245,14 @@ function drawWorld(state) {
   ctx.save();
   ctx.translate(-Math.round(camX), -Math.round(camY));
   const treeLine = treeLineY(state);
-  for (let i = -1; i < Math.ceil(state.w / 2) + 1; i++) {
-    const x = i * 84;
-    if (x < camX - 120 || x > camX + VIEW_W + 120) continue;
-    drawPine(x, treeLine + 34, 168 + (i % 4) * 20, theme.hill, theme.hill2);
+  const treeName = theme.tree || 'pine';
+  const reed = treeName === 'reed';
+  const treeStep = reed ? 50 : 84;
+  const treeBase = reed ? 150 : 168;
+  for (let i = -1; i < Math.ceil(state.w * TILE / treeStep) + 1; i++) {
+    const x = i * treeStep;
+    if (x < camX - 140 || x > camX + VIEW_W + 140) continue;
+    drawPine(x, treeLine + (reed ? 86 : 34), treeBase + (i % 4) * (reed ? 10 : 20), theme.hill, theme.hill2, treeName);
   }
   const waterY = (state.h - 2) * TILE;
   const water = ctx.createLinearGradient(0, waterY, 0, waterY + TILE * 2);
@@ -1147,7 +1274,7 @@ function drawWorld(state) {
     }
     ctx.stroke();
   }
-  if (state.def.id === '3-2') drawLodge(state.w * TILE - 150, 5 * TILE);
+  if (state.def.id === '3-2' || state.def.ending) drawLodge(state.w * TILE - 150, 5 * TILE);
   const x0 = Math.max(0, Math.floor(camX / TILE) - 1);
   const x1 = Math.min(state.w - 1, Math.floor((camX + VIEW_W) / TILE) + 1);
   const y0 = Math.max(0, Math.floor(camY / TILE) - 1);
@@ -1166,7 +1293,16 @@ function drawWorld(state) {
   if (state.pole) drawPole(state);
   const p = state.player;
   const blink = p.invuln > 0 && Math.floor(p.invuln * 14) % 2 === 0;
-  if (!blink) drawBeaver(p.x, p.y, p.w, p.h, p.face, { form: p.form, phase: p.run, squash: p.squash, color: '#8b5a3c' });
+  if (!blink) {
+    const speed = Math.abs(p.vx);
+    const bob = p.grounded ? (speed > 20 ? Math.sin(p.run) * 2.2 : Math.sin(animT * 2) * 0.6) : (p.vy < -40 ? -1.5 : 1.4);
+    const lean = clamp(p.vx / RUN, -1, 1) * 0.08;
+    let squash = p.squash || 0;
+    if (!p.grounded && p.vy < -40) squash = -0.12;
+    drawBeaver(p.x, p.y, p.w, p.h, p.face, {
+      form: p.form, phase: p.run, squash: squash, bob: bob, lean: lean, color: '#8b5a3c'
+    });
+  }
   for (let i = 0; i < state.parts.length; i++) {
     const part = state.parts[i];
     ctx.globalAlpha = Math.max(0, part.life * 2);
@@ -1284,6 +1420,12 @@ function drawTile(state, x, y) {
       else {
         const sy = Math.floor(g.naturalHeight * 0.5);
         ctx.drawImage(g, 0, sy, g.naturalWidth, g.naturalHeight - sy, px, py, TILE + 0.8, TILE + 0.8);
+      }
+      if (top && state.theme.snow) {
+        ctx.fillStyle = 'rgba(244,248,252,0.92)';
+        ctx.fillRect(px, py, TILE + 0.8, 7);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(px, py, TILE + 0.8, 3);
       }
       return;
     }
@@ -1507,7 +1649,17 @@ function drawShot(s) {
   const cx = s.x + s.w / 2;
   const cy = s.y + s.h / 2;
   const r = s.w / 2;
-  if (s.from === 'duck') {
+  if (s.from === 'mason') {
+    ctx.fillStyle = '#c46a45';
+    ctx.fillRect(s.x, s.y, s.w, s.h);
+    ctx.strokeStyle = '#3a2418';
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(s.x, s.y, s.w, s.h);
+    ctx.fillStyle = 'rgba(243,210,176,0.7)';
+    ctx.fillRect(s.x + 2, s.y + s.h / 2, s.w - 4, 1.2);
+    return;
+  }
+  if (s.from === 'duck' || s.from === 'goose') {
     ctx.fillStyle = 'rgba(210,236,255,0.42)';
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -1579,34 +1731,61 @@ function drawEnemy(state, e) {
     drawDuck(e);
     return;
   }
+  if (e.kind === 'goose') {
+    drawGoose(e);
+    return;
+  }
+  if (e.kind === 'mason') {
+    drawMason(e);
+    return;
+  }
   if (e.kind === 'roller') {
     drawRoller(e);
     return;
   }
+  if (e.kind === 'tumbler') {
+    drawTumbler(e);
+    return;
+  }
+  const painted = { leaper: ['leaper', 52, 48], nipper: ['nipper', 54, 46], icer: ['icer', 54, 48] }[e.kind];
+  const bob = Math.sin(animT * (e.kind === 'icer' ? 14 : 8) + e.x * 0.02) * 1.6;
+  const lean = (e.kind === 'nipper' || e.kind === 'icer') ? (e.face || 1) * 0.07 : 0;
   const color = e.kind === 'boss' ? '#c44536' : '#d4533c';
   drawBeaver(e.x, e.y, e.w, e.h, e.face, {
     form: 'small',
-    phase: e.x * 0.08,
+    phase: animT * 8,
     color: color,
-    angry: true,
-    boss: e.kind === 'boss'
+    angry: !painted,
+    boss: e.kind === 'boss',
+    sprite: painted ? painted[0] : '',
+    dw: painted ? painted[1] : 0,
+    dh: painted ? painted[2] : 0,
+    bob: bob,
+    lean: lean,
+    squash: e.kind === 'leaper' && !e.grounded ? -0.1 : 0
   });
   if (e.kind === 'boss') {
     ctx.fillStyle = '#f6e7c1';
     ctx.font = '700 11px Trebuchet MS, sans-serif';
     ctx.textAlign = 'center';
+    const label = state.def.bossName || 'LOCKJAW';
     const labelX = clamp(e.x + e.w / 2, state.camX + 48, state.camX + VIEW_W - 48);
-    ctx.fillText('LOCKJAW', labelX, e.y - 30);
-    for (let i = 0; i < 3; i++) {
+    ctx.fillText(label, labelX, e.y - 30);
+    const pips = e.maxHp || 3;
+    const gap = pips > 4 ? 9 : 12;
+    const total = pips * gap;
+    for (let i = 0; i < pips; i++) {
       ctx.fillStyle = i < e.hp ? '#f2c14e' : '#3a2a22';
-      ctx.fillRect(labelX - 16 + i * 12, e.y - 24, 8, 5);
+      ctx.fillRect(labelX - total / 2 + i * gap, e.y - 24, gap - 3, 5);
     }
     ctx.textAlign = 'left';
   }
 }
 
 function drawDuck(e) {
-  if (blit('duck', e.x + e.w / 2, e.y + e.h, 66, 60, e.face || -1, 0)) return;
+  const bob = Math.sin(animT * 3.2 + e.x * 0.02) * 1.3;
+  const squash = 0.035 * Math.sin(animT * 6);
+  if (blit('duck', e.x + e.w / 2, e.y + e.h, 66, 60, e.face || -1, squash, { bob: bob })) return;
   ctx.save();
   ctx.translate(e.x + e.w / 2, e.y + e.h);
   ctx.scale(e.face || -1, 1);
@@ -1651,6 +1830,34 @@ function drawDuck(e) {
   ctx.restore();
 }
 
+function drawGoose(e) {
+  const bob = Math.sin(animT * 2.6 + e.x * 0.02) * 1.5;
+  const squash = 0.04 * Math.sin(animT * 5);
+  if (blit('goose', e.x + e.w / 2, e.y + e.h, 74, 88, e.face || -1, squash, { bob: bob })) return;
+  drawDuck(e);
+}
+
+function drawMason(e) {
+  const bob = Math.sin(animT * 2.2 + e.x * 0.02) * 0.8;
+  if (blit('mason', e.x + e.w / 2, e.y + e.h, 62, 70, e.face || -1, 0, { bob: bob })) return;
+  drawBeaver(e.x, e.y, e.w, e.h, e.face, { angry: true, color: '#d4533c', bob: bob });
+}
+
+function drawTumbler(e) {
+  const img = ART.tumbler;
+  if (artReady(img)) {
+    ctx.save();
+    ctx.translate(e.x + e.w / 2, e.y + e.h / 2 + 2);
+    if (e.state === 'roll') ctx.rotate(e.x * 0.05);
+    else ctx.rotate(Math.sin(animT * 2 + e.x) * 0.04);
+    ctx.scale(e.face || 1, 1);
+    ctx.drawImage(img, -39, -24, 78, 48);
+    ctx.restore();
+    return;
+  }
+  drawRoller(e);
+}
+
 function drawRoller(e) {
   if (artReady(ART.loghead)) {
     ctx.save();
@@ -1693,11 +1900,12 @@ function drawBeaver(x, y, w, h, face, opt) {
   let sprite = 'bober';
   let dw = 50;
   let dh = 56;
-  if (o.boss) { sprite = 'lockjaw'; dw = 80; dh = 84; }
+  if (o.sprite) { sprite = o.sprite; dw = o.dw || dw; dh = o.dh || dh; }
+  else if (o.boss) { sprite = 'lockjaw'; dw = 80; dh = 84; }
   else if (o.angry) { sprite = 'kit'; dw = 48; dh = 50; }
   else if (o.form === 'sap') { sprite = 'sap'; dw = 72; dh = 58; }
   else if (o.form === 'cap') { sprite = 'cap'; dw = 54; dh = 68; }
-  if (blit(sprite, x + w / 2, y + h, dw, dh, face || 1, o.squash || 0)) return;
+  if (blit(sprite, x + w / 2, y + h, dw, dh, face || 1, o.squash || 0, { bob: o.bob || 0, lean: o.lean || 0 })) return;
   ctx.save();
   ctx.translate(x + w / 2, y + h);
   ctx.scale(face || 1, 1);
@@ -1849,7 +2057,14 @@ const STORY = [
   { img: 'assets/museum/mill.jpg', kicker: 'Brick Mill', title: 'The path, chewed', copy: 'The mill had chewed the path into bricks. Sap gathered in his cheek. He learned to spit a chip, and the mill coughed him out the far side.' },
   { img: 'assets/museum/spill.jpg', kicker: 'The high wood', title: 'Water in a hurry', copy: 'Scaffolds sway. The spillway does not wait. He rides the moving log, hops the gaps, and keeps the cap.' },
   { img: 'assets/museum/lockjaw.jpg', kicker: 'Bell Rope', title: 'Lockjaw', copy: 'Lockjaw sits on the rope and will not move. Three stomps, or a mouthful of sap. Then the rope is free.' },
-  { img: 'assets/museum/bell-lit.jpg', kicker: 'Home', title: 'The river answers', copy: 'Bober rings the bell once. The reds scatter. The river answers, and the lodge is lit.' }
+  { img: 'assets/museum/bell-lit.jpg', kicker: 'The rope', title: 'The bell, not the river', copy: 'Bober rings the bell. It lights. The river does not rise. The light shows the water is held upstream.' },
+  { img: 'assets/poster.jpg', kicker: 'Cedar Shade', title: 'A thin creek', copy: 'He follows the light along a cedar thread. Red leapers hop the shade. The water is still only a shine between roots.' },
+  { img: 'assets/museum/duck.jpg', kicker: 'Reed Water', title: 'Long necks', copy: 'Reeds thicken. Ducks stand, and geese with long necks spit quicker bubbles. The creek is deeper here, and still not a river.' },
+  { img: 'assets/museum/mill.jpg', kicker: 'Clay Kiln', title: 'A second mill', copy: 'Another mill is still chewing the bank into bricks. Nippers run low and fast. He breaks what he must and keeps the thread.' },
+  { img: 'assets/museum/spill.jpg', kicker: 'Rope Run', title: 'Logs over the cut', copy: 'The creekbed is an empty cut. Scaffolds and tumblers cross it. He rides nothing he does not have to.' },
+  { img: 'assets/museum/bell-dark.jpg', kicker: 'Frost Bank', title: 'The creek is ice', copy: 'Snow sits on the pines. Icers slide the frozen thread. Under the ice, the water is still trying to come home.' },
+  { img: 'assets/museum/dam.jpg', kicker: 'Red Dam', title: 'What holds the river', copy: 'The reds stacked logs, kits, and acorns into a dam. Masons throw bricks from the top. The lake behind it is the river that never arrived.' },
+  { img: 'assets/museum/source.jpg', kicker: 'The Source', title: 'Water comes home', copy: 'Past the dam is the spring. A last keeper sits on the source rope. When he lets go, the water runs the whole way, and the lit bell finally has a river to answer.' }
 ];
 
 const MUSEUM = [
@@ -1863,7 +2078,15 @@ const MUSEUM = [
   { img: 'assets/poster.jpg', tag: 'Bank', name: 'Pine Bank', copy: 'The mud still knows his feet. The first hop home.' },
   { img: 'assets/museum/mill.jpg', tag: 'Bank', name: 'Brick Mill', copy: 'The mill chewed the path into bricks. Scaffolds hang over the wheel.' },
   { img: 'assets/museum/spill.jpg', tag: 'Bank', name: 'Spillway', copy: 'The water is in a hurry. The logs are not.' },
-  { img: 'assets/museum/bell-lit.jpg', tag: 'Home', name: 'The Bell', copy: 'Ring it once. The reds scatter. The lodge is lit.' }
+  { img: 'assets/museum/bell-lit.jpg', tag: 'Home', name: 'The Bell', copy: 'Ring it once. It lights. The river does not rise yet.' },
+  { img: 'assets/sprites/leaper.png', tag: 'Reds', name: 'Leaper', copy: 'A red kit that hops the cedar shade. Stomp him on the flat.' },
+  { img: 'assets/sprites/goose.png', tag: 'Reds', name: 'Goose', copy: 'Long neck, cream body, orange bill. Spits bubbles faster than a duck.' },
+  { img: 'assets/sprites/nipper.png', tag: 'Reds', name: 'Nipper', copy: 'Low and angry. Runs at Bober when he gets close.' },
+  { img: 'assets/sprites/tumbler.png', tag: 'Reds', name: 'Tumbler', copy: 'A round barked log. Comes rolling when Bober is near.' },
+  { img: 'assets/sprites/icer.png', tag: 'Reds', name: 'Icer', copy: 'Frost on the fur. Slides the frozen bank faster than a kit.' },
+  { img: 'assets/sprites/mason.png', tag: 'Reds', name: 'Mason', copy: 'Stands on the dam and throws a clay brick straight.' },
+  { img: 'assets/museum/dam.jpg', tag: 'Upstream', name: 'Red Dam', copy: 'Logs, kits, and acorns stacked until the river stops.' },
+  { img: 'assets/museum/source.jpg', tag: 'Upstream', name: 'The Source', copy: 'The spring under the pines. Clear the rope and the water comes home.' }
 ];
 
 function artSrc(path) {
@@ -1941,6 +2164,7 @@ function setCard(name) {
 function renderMap() {
   const list = document.getElementById('map-list');
   list.innerHTML = '';
+  const worldName = ['', 'Pine opening', 'Brick mill', 'Bell rope', 'Cedar shade', 'Reed water', 'Clay kiln', 'Rope run', 'Frost bank', 'Red dam', 'The source'];
   let nextIndex = 0;
   for (let i = 0; i < LEVELS.length; i++) {
     if (!save.cleared[LEVELS[i].id]) { nextIndex = i; break; }
@@ -1949,7 +2173,14 @@ function renderMap() {
   if (save.cleared[LEVELS[LEVELS.length - 1].id]) nextIndex = LEVELS.length - 1;
   const story = LEVELS[Math.min(save.unlocked, LEVELS.length - 1)];
   document.getElementById('map-story').textContent = story.line;
+  let lastWorld = 0;
   LEVELS.forEach((lv, i) => {
+    if (lv.world !== lastWorld) {
+      lastWorld = lv.world;
+      const heading = document.createElement('h3');
+      heading.textContent = worldName[lv.world] || ('World ' + lv.world);
+      list.appendChild(heading);
+    }
     const open = i <= save.unlocked;
     const cleared = !!save.cleared[lv.id];
     const btn = document.createElement('button');
@@ -1991,7 +2222,8 @@ function openClear() {
 }
 
 function openEnd() {
-  document.getElementById('end-copy').textContent = 'Bober rings the bell once. The reds scatter. The river answers, and the lodge is lit. ' + live.acorns + ' $BOBER banked.';
+  document.getElementById('end-title').textContent = 'The river is home';
+  document.getElementById('end-copy').textContent = 'The keeper lets go of the source rope. Water runs the creek, the spillway, and the mill, and the lit bell finally has a river to answer. ' + live.acorns + ' $BOBER banked.';
   setCard('end');
 }
 
@@ -2005,7 +2237,7 @@ function watch() {
   if (live.mode === 'clear' && latch !== 'clear') {
     latch = 'clear';
     onClear(live);
-    if (live.def.id === '3-2') openEnd();
+    if (live.def.ending) openEnd();
     else openClear();
   } else if (live.mode === 'over' && latch !== 'over') {
     latch = 'over';
@@ -2015,9 +2247,19 @@ function watch() {
 
 function readInput() {
   if (live && live.bot) return botInput(live);
+  let left = held.left && !held.right;
+  let right = held.right && !held.left;
+  if (left || right) {
+    lastDir = left ? -1 : 1;
+    dirGrace = 0.22;
+  } else if (held.jump && dirGrace > 0) {
+    dirGrace -= STEP;
+    if (lastDir < 0) left = true;
+    else right = true;
+  } else dirGrace = Math.max(0, dirGrace - STEP);
   const input = {
-    left: held.left && !held.right,
-    right: held.right && !held.left,
+    left: left,
+    right: right,
     jump: held.jump,
     jumpPressed: pressed.jump,
     spit: held.spit,
@@ -2050,19 +2292,24 @@ function frame(now) {
 
 function bindHold(id, key) {
   const el = document.getElementById(id);
+  const ids = new Set();
   const down = (ev) => {
     ev.preventDefault();
+    ids.add(ev.pointerId);
     held[key] = true;
     if (key === 'jump' || key === 'spit') pressed[key] = true;
+    if (el.setPointerCapture) {
+      try { el.setPointerCapture(ev.pointerId); } catch (err) { /* pointer already gone */ }
+    }
     ensureAudio();
   };
   const up = (ev) => {
-    ev.preventDefault();
-    held[key] = false;
+    if (ev && ev.preventDefault) ev.preventDefault();
+    if (ev && ev.pointerId != null) ids.delete(ev.pointerId);
+    if (ids.size === 0) held[key] = false;
   };
   el.addEventListener('pointerdown', down);
   el.addEventListener('pointerup', up);
-  el.addEventListener('pointerleave', up);
   el.addEventListener('pointercancel', up);
 }
 
@@ -2148,6 +2395,11 @@ function bindUI() {
   bindHold('btn-right', 'right');
   bindHold('btn-jump', 'jump');
   bindHold('btn-spit', 'spit');
+  document.addEventListener('gesturestart', (ev) => ev.preventDefault());
+  document.addEventListener('gesturechange', (ev) => ev.preventDefault());
+  document.addEventListener('touchmove', (ev) => {
+    if (ev.touches && ev.touches.length > 1) ev.preventDefault();
+  }, { passive: false });
   window.addEventListener('keydown', (ev) => {
     if (ev.repeat) return;
     const map = {
