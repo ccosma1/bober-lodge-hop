@@ -24,6 +24,10 @@ $BOBER is the acorn count. It saves in this browser under `bober-lodge-hop-v1`.
 
 ## Story
 
+The lodge bell used to answer the river. The reds took the acorns that wake it. Bober hops the bank, the mill, and the spillway, then rings the bell once.
+
+STORY on the title walks that tale. MUSEUM opens the plates: Bober, the lodge cap, sap, the reds, and the banks.
+
 1-1 Pine Bank. The mud still knows his feet.
 1-2 Stump Stairs. Old stumps mark the old river.
 2-1 Brick Mill. The mill chewed the path into bricks.
@@ -39,4 +43,4 @@ python scripts/playtest.py
 
 That needs a local server on port 8793 and Chrome. It runs the bank bot through all six levels, then clicks the phone UI.
 
-Build lh1. Original art and sounds.
+Build lh2. Original art and sounds.

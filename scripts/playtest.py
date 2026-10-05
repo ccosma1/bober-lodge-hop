@@ -5,7 +5,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-URL = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8793/?v=lh1"
+URL = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8793/?v=lh2"
 OUT = Path(__file__).resolve().parents[1] / "docs" / "lh1"
 
 
@@ -18,7 +18,7 @@ def main():
         page.set_default_timeout(120000)
         page.on("pageerror", lambda err: errors.append(str(err)))
         page.goto(URL, wait_until="networkidle")
-        page.wait_for_function("() => window.__hop && window.__hop.build === 'lh1'")
+        page.wait_for_function("() => window.__hop && window.__hop.build === 'lh2'")
         result = page.evaluate("() => window.__hop.selfTest()")
         (OUT / "selftest.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
         print(json.dumps(result["report"]))
@@ -48,10 +48,32 @@ def main():
         page.click("#btn-map-title")
         page.click("#btn-notes")
         notes = page.inner_text("#screen-notes")
-        if "lh1" not in notes or "Unofficial" not in notes or "No wallet" not in notes:
+        if "lh2" not in notes or "Unofficial" not in notes or "No wallet" not in notes:
             errors.append("notes missing fan line or build")
-        page.set_viewport_size({"width": 1440, "height": 900})
         page.click("#btn-notes-back")
+        page.click("#btn-story")
+        page.wait_for_selector("#screen-story:not([hidden])")
+        story = page.inner_text("#story-title")
+        if "quiet" not in story.lower():
+            errors.append("story title")
+        page.screenshot(path=str(OUT / "story-390.png"))
+        page.click("#btn-story-next")
+        if "carried" not in page.inner_text("#story-title").lower() and "what" not in page.inner_text("#story-title").lower():
+            errors.append("story next")
+        page.click("#btn-story-back")
+        page.wait_for_selector("#screen-title:not([hidden])")
+        page.click("#btn-museum")
+        page.wait_for_selector("#museum-grid button")
+        page.screenshot(path=str(OUT / "museum-390.png"))
+        page.click("#museum-grid button")
+        page.wait_for_selector("#screen-plate:not([hidden])")
+        if page.inner_text("#plate-name").strip() != "Bober":
+            errors.append("plate")
+        page.screenshot(path=str(OUT / "plate-390.png"))
+        page.click("#btn-plate-back")
+        page.click("#btn-museum-back")
+        page.wait_for_selector("#screen-title:not([hidden])")
+        page.set_viewport_size({"width": 1440, "height": 900})
         page.wait_for_timeout(200)
         page.screenshot(path=str(OUT / "title-1440.png"))
         browser.close()

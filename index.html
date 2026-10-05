@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1A1028">
   <meta name="description" content="Bober Lodge Hop. Hop the bank, stomp the reds, and light the lodge bell.">
   <title>Bober Lodge Hop</title>
-  <link rel="stylesheet" href="css/game.css?v=lh1">
+  <link rel="stylesheet" href="css/game.css?v=lh2">
 </head>
 <body data-mode="title" data-card="">
   <div id="app">
@@ -23,12 +23,16 @@
     </div>
     <section id="panel">
       <div id="screen-title" class="screen">
-        <img id="poster" src="assets/poster.jpg?v=lh1" alt="Bober hops toward the lodge bell">
+        <img id="poster" src="assets/poster.jpg?v=lh2" alt="Bober hops toward the lodge bell">
         <p class="eyebrow">Fan game by a holder</p>
         <h1>BOBER<br>LODGE HOP</h1>
         <p class="story">The lodge bell is dark. The reds took the acorns that wake it. Hop the bank, the mill, and the spillway, and bring the light home.</p>
         <button type="button" id="btn-play">PLAY</button>
         <button type="button" id="btn-continue" hidden>CONTINUE</button>
+        <div class="ghost-row">
+          <button type="button" id="btn-story" class="ghost">STORY</button>
+          <button type="button" id="btn-museum" class="ghost">MUSEUM</button>
+        </div>
         <button type="button" id="btn-notes" class="ghost">NOTES</button>
         <p class="fine">Arrows or buttons to run. Z or Jump to hop.</p>
       </div>
@@ -44,7 +48,7 @@
           <li>Reach the bell pole. On the last bank, stomp Lockjaw until he lets go of the rope.</li>
         </ul>
         <p class="note">Fan game by a holder. Unofficial. Not the project team. No wallet.</p>
-        <p id="build-tag">Build lh1</p>
+        <p id="build-tag">Build lh2</p>
         <button type="button" id="btn-sound">Sound on</button>
         <button type="button" id="btn-notes-back" class="ghost">BACK</button>
       </div>
@@ -53,8 +57,34 @@
         <h2>Bober's banks</h2>
         <p id="map-story"></p>
         <div id="map-list"></div>
+        <div class="ghost-row">
+          <button type="button" id="btn-map-story" class="ghost">STORY</button>
+          <button type="button" id="btn-map-museum" class="ghost">MUSEUM</button>
+        </div>
         <button type="button" id="btn-map-title" class="ghost">TITLE</button>
         <p class="fine">Fan game by a holder. No wallet.</p>
+      </div>
+      <div id="screen-story" class="screen" hidden>
+        <img id="story-art" alt="" />
+        <p class="eyebrow" id="story-kicker"></p>
+        <h2 id="story-title"></h2>
+        <p class="story" id="story-copy"></p>
+        <button type="button" id="btn-story-next">NEXT</button>
+        <button type="button" id="btn-story-back" class="ghost">BACK</button>
+      </div>
+      <div id="screen-museum" class="screen" hidden>
+        <p class="eyebrow">Plates from the banks</p>
+        <h2>Museum</h2>
+        <p class="story">The hop, the reds, and the bell. Tap a plate.</p>
+        <div id="museum-grid"></div>
+        <button type="button" id="btn-museum-back" class="ghost">BACK</button>
+      </div>
+      <div id="screen-plate" class="screen" hidden>
+        <img id="plate-art" alt="" />
+        <p class="eyebrow" id="plate-tag"></p>
+        <h2 id="plate-name"></h2>
+        <p class="story" id="plate-copy"></p>
+        <button type="button" id="btn-plate-back" class="ghost">BACK</button>
       </div>
     </section>
     <div id="cards">
@@ -62,6 +92,7 @@
         <h2>Paused</h2>
         <p>The bank waits.</p>
         <button type="button" id="btn-resume">RESUME</button>
+        <button type="button" id="btn-pause-museum" class="ghost">MUSEUM</button>
         <button type="button" id="btn-restart">RESTART LEVEL</button>
         <button type="button" id="btn-quit" class="ghost">MAP</button>
       </div>
@@ -94,7 +125,7 @@
       </div>
     </div>
   </div>
-  <script src="js/levels.js?v=lh1"></script>
-  <script src="js/game.js?v=lh1"></script>
+  <script src="js/levels.js?v=lh2"></script>
+  <script src="js/game.js?v=lh2"></script>
 </body>
 </html>
