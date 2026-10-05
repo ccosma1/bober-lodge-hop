@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1A1028">
+  <meta name="description" content="Bober Lodge Hop. Hop the bank, stomp the reds, and light the lodge bell.">
+  <title>Bober Lodge Hop</title>
+  <link rel="stylesheet" href="css/game.css?v=lh1">
+</head>
+<body data-mode="title" data-card="">
+  <div id="app">
+    <header id="hud">
+      <span id="hud-lives">Lives 5</span>
+      <span id="hud-level">1-1</span>
+      <span id="hud-form"></span>
+      <span id="hud-coins">$BOBER 0</span>
+      <span id="hud-time">200</span>
+      <button type="button" id="btn-pause" aria-label="Pause">II</button>
+    </header>
+    <div id="stage">
+      <canvas id="view" width="640" height="560"></canvas>
+    </div>
+    <section id="panel">
+      <div id="screen-title" class="screen">
+        <img id="poster" src="assets/poster.jpg?v=lh1" alt="Bober hops toward the lodge bell">
+        <p class="eyebrow">Fan game by a holder</p>
+        <h1>BOBER<br>LODGE HOP</h1>
+        <p class="story">The lodge bell is dark. The reds took the acorns that wake it. Hop the bank, the mill, and the spillway, and bring the light home.</p>
+        <button type="button" id="btn-play">PLAY</button>
+        <button type="button" id="btn-continue" hidden>CONTINUE</button>
+        <button type="button" id="btn-notes" class="ghost">NOTES</button>
+        <p class="fine">Arrows or buttons to run. Z or Jump to hop.</p>
+      </div>
+      <div id="screen-notes" class="screen" hidden>
+        <h2>Notes</h2>
+        <p class="note">Bober is hopping home to light the lodge bell. The reds are in the way. Acorns he picks up are $BOBER.</p>
+        <ul id="notes-list">
+          <li>Left and right run along the bank.</li>
+          <li>Jump hops. Hold it to hop higher.</li>
+          <li>Land on a red to stomp it. A loghead rolls when you land on it.</li>
+          <li>A lodge cap lets one hit glance off, and lets you break bricks.</li>
+          <li>Sap spit throws a chip. Use Spit or J.</li>
+          <li>Reach the bell pole. On the last bank, stomp Lockjaw until he lets go of the rope.</li>
+        </ul>
+        <p class="note">Fan game by a holder. Unofficial. Not the project team. No wallet.</p>
+        <p id="build-tag">Build lh1</p>
+        <button type="button" id="btn-sound">Sound on</button>
+        <button type="button" id="btn-notes-back" class="ghost">BACK</button>
+      </div>
+      <div id="screen-map" class="screen" hidden>
+        <p class="eyebrow">The way home</p>
+        <h2>Bober's banks</h2>
+        <p id="map-story"></p>
+        <div id="map-list"></div>
+        <button type="button" id="btn-map-title" class="ghost">TITLE</button>
+        <p class="fine">Fan game by a holder. No wallet.</p>
+      </div>
+    </section>
+    <div id="cards">
+      <div id="card-pause" class="card" hidden>
+        <h2>Paused</h2>
+        <p>The bank waits.</p>
+        <button type="button" id="btn-resume">RESUME</button>
+        <button type="button" id="btn-restart">RESTART LEVEL</button>
+        <button type="button" id="btn-quit" class="ghost">MAP</button>
+      </div>
+      <div id="card-clear" class="card" hidden>
+        <h2 id="clear-title">Bank clear</h2>
+        <p id="clear-copy"></p>
+        <button type="button" id="btn-next">NEXT</button>
+        <button type="button" id="btn-clear-map" class="ghost">MAP</button>
+      </div>
+      <div id="card-over" class="card" hidden>
+        <h2>The bell stays dark</h2>
+        <p>The reds sent Bober back to the mud.</p>
+        <button type="button" id="btn-retry">RETRY</button>
+        <button type="button" id="btn-over-map" class="ghost">MAP</button>
+      </div>
+      <div id="card-end" class="card" hidden>
+        <h2>The bell is lit</h2>
+        <p id="end-copy"></p>
+        <button type="button" id="btn-end-map">THE BANKS</button>
+      </div>
+    </div>
+    <div id="touch">
+      <div class="pad">
+        <button type="button" id="btn-left" aria-label="Left">◀</button>
+        <button type="button" id="btn-right" aria-label="Right">▶</button>
+      </div>
+      <div class="pad right">
+        <button type="button" id="btn-spit" aria-label="Spit" hidden>SPIT</button>
+        <button type="button" id="btn-jump" aria-label="Jump">JUMP</button>
+      </div>
+    </div>
+  </div>
+  <script src="js/levels.js?v=lh1"></script>
+  <script src="js/game.js?v=lh1"></script>
+</body>
+</html>
