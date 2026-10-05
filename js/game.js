@@ -1,5 +1,5 @@
-/* Bober Lodge Hop lh2 — original bank hop. No borrowed characters or tunes. */
-const BUILD = 'lh2';
+/* Bober Lodge Hop lh3 — original bank hop. No borrowed characters or tunes. */
+const BUILD = 'lh3';
 const TILE = 32;
 let VIEW_W = 224;
 let VIEW_H = 360;
@@ -27,6 +27,39 @@ const THEMES = {
 
 const canvas = document.getElementById('view');
 const ctx = canvas.getContext('2d');
+
+const ART = {};
+const FOOT = { bober: 0.661, cap: 0.652, sap: 0.391, kit: 0.594, duck: 0.417, lockjaw: 0.522 };
+
+function loadArt() {
+  ['bober', 'cap', 'sap', 'kit', 'loghead', 'duck', 'lockjaw', 'pine', 'acorn', 'bell', 'grass', 'brick', 'bark'].forEach((name) => {
+    const img = new Image();
+    img.src = 'assets/sprites/' + name + '.png?v=' + BUILD;
+    ART[name] = img;
+  });
+}
+
+function artReady(img) {
+  return !!(img && img.complete && img.naturalWidth > 0);
+}
+
+function blit(name, cx, footY, dw, dh, face, squash) {
+  const img = ART[name];
+  if (!artReady(img)) return false;
+  const foot = FOOT[name] || 0.5;
+  ctx.save();
+  ctx.translate(cx, footY);
+  ctx.fillStyle = 'rgba(26,16,40,0.16)';
+  ctx.beginPath();
+  ctx.ellipse(0, -1, Math.min(12, dw * 0.18), 2.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.scale(face || 1, 1);
+  const s = squash || 0;
+  ctx.scale(1 + s * 0.35, 1 - s * 0.22);
+  ctx.drawImage(img, -dw * foot, -dh, dw, dh);
+  ctx.restore();
+  return true;
+}
 
 function layoutView() {
   const rect = document.getElementById('stage').getBoundingClientRect();
@@ -995,7 +1028,29 @@ function drawCloud(x, y, s) {
   ctx.fill();
 }
 
+function treeLineY(state) {
+  let bestY = state.h - 2;
+  let best = 0;
+  for (let y = 0; y < state.h; y++) {
+    let n = 0;
+    const row = state.rows[y];
+    for (let x = 0; x < row.length; x++) if (row[x] === '#') n++;
+    if (n > best) {
+      best = n;
+      bestY = y;
+    }
+  }
+  return bestY * TILE;
+}
+
 function drawPine(x, base, h, dark, light) {
+  const img = ART.pine;
+  if (artReady(img)) {
+    const dh = h;
+    const dw = dh * (img.naturalWidth / img.naturalHeight);
+    ctx.drawImage(img, x - dw / 2, base - dh, dw, dh);
+    return;
+  }
   ctx.fillStyle = '#5c3a2a';
   ctx.fillRect(x - 1.5, base - h * 0.28, 3, h * 0.28);
   ctx.fillStyle = dark;
@@ -1064,29 +1119,14 @@ function drawWorld(state) {
     const drift = camX * 0.08;
     for (let i = -1; i < 5; i++) drawCloud(i * 78 - (drift % 78), 28 + (i % 3) * 16, 1 + (i % 2) * 0.25);
   }
-  ctx.fillStyle = theme.hill2;
-  for (let i = -1; i < 8; i++) {
-    const x = i * 90 - (camX * 0.18 % 90);
-    ctx.beginPath();
-    ctx.ellipse(x, VIEW_H * 0.8, 74, 34, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  const pineBase = VIEW_H * 0.72;
-  for (let i = -1; i < 9; i++) {
-    const x = i * 34 - (camX * 0.28 % 34);
-    drawPine(x, pineBase, 28 + (i % 4) * 8, theme.hill, theme.hill2);
-  }
-  ctx.fillStyle = theme.hill;
-  for (let i = -1; i < 10; i++) {
-    const x = i * 70 - (camX * 0.45 % 70);
-    ctx.beginPath();
-    ctx.moveTo(x, VIEW_H);
-    ctx.quadraticCurveTo(x + 16, VIEW_H * 0.66, x + 28, VIEW_H * 0.6);
-    ctx.quadraticCurveTo(x + 40, VIEW_H * 0.7, x + 62, VIEW_H);
-    ctx.fill();
-  }
   ctx.save();
   ctx.translate(-Math.round(camX), -Math.round(camY));
+  const treeLine = treeLineY(state);
+  for (let i = -1; i < Math.ceil(state.w / 2) + 1; i++) {
+    const x = i * 84;
+    if (x < camX - 120 || x > camX + VIEW_W + 120) continue;
+    drawPine(x, treeLine + 34, 168 + (i % 4) * 20, theme.hill, theme.hill2);
+  }
   const waterY = (state.h - 2) * TILE;
   const water = ctx.createLinearGradient(0, waterY, 0, waterY + TILE * 2);
   water.addColorStop(0, theme.water);
@@ -1238,6 +1278,15 @@ function drawTile(state, x, y) {
   const above = tileAt(state, x, y - 1);
   if (c === '#') {
     const top = !SOLID.has(above) && above !== '=';
+    if (artReady(ART.grass)) {
+      const g = ART.grass;
+      if (top) ctx.drawImage(g, px, py, TILE + 0.8, TILE + 0.8);
+      else {
+        const sy = Math.floor(g.naturalHeight * 0.5);
+        ctx.drawImage(g, 0, sy, g.naturalWidth, g.naturalHeight - sy, px, py, TILE + 0.8, TILE + 0.8);
+      }
+      return;
+    }
     const dirt = ctx.createLinearGradient(px, py, px, py + TILE);
     dirt.addColorStop(0, top ? '#6b442c' : '#7a5236');
     dirt.addColorStop(1, '#3d2818');
@@ -1265,7 +1314,16 @@ function drawTile(state, x, y) {
     return;
   }
   if (c === 'B' || c === 'u' || c === '?' || c === '!' || c === 'S') {
-    if (c === 'B') drawBlockFace(px, py, '#e08a62', '#a65232');
+    if (artReady(ART.brick)) {
+      ctx.drawImage(ART.brick, px, py, TILE + 0.8, TILE + 0.8);
+      if (c === 'u') {
+        ctx.fillStyle = 'rgba(26,16,40,0.35)';
+        ctx.fillRect(px, py, TILE, TILE);
+      } else if (c !== 'B') {
+        ctx.fillStyle = 'rgba(242,193,78,0.32)';
+        ctx.fillRect(px, py, TILE, TILE);
+      }
+    } else if (c === 'B') drawBlockFace(px, py, '#e08a62', '#a65232');
     else if (c === 'u') drawBlockFace(px, py, '#c4a574', '#8d6b42');
     else drawBlockFace(px, py, '#f2c14e', '#c4842a');
     if (c === 'B') {
@@ -1304,6 +1362,18 @@ function drawTile(state, x, y) {
     return;
   }
   if (c === '=') {
+    if (artReady(ART.bark)) {
+      ctx.save();
+      roundRect(px + 1, py + 2, TILE - 2, 14, 7);
+      ctx.clip();
+      ctx.drawImage(ART.bark, px, py + 1, TILE, 16);
+      ctx.restore();
+      ctx.strokeStyle = '#3a2418';
+      ctx.lineWidth = 1.2;
+      roundRect(px + 1, py + 2, TILE - 2, 14, 7);
+      ctx.stroke();
+      return;
+    }
     ctx.fillStyle = '#6b442c';
     roundRect(px + 1, py + 2, TILE - 2, 14, 7);
     ctx.fill();
@@ -1337,6 +1407,12 @@ function drawTile(state, x, y) {
 }
 
 function drawAcorn(x, y, r) {
+  if (artReady(ART.acorn)) {
+    const dw = r * 2.6;
+    const dh = dw * (ART.acorn.naturalHeight / ART.acorn.naturalWidth);
+    ctx.drawImage(ART.acorn, x - dw / 2, y - dh / 2, dw, dh);
+    return;
+  }
   ctx.fillStyle = '#f2c14e';
   ctx.beginPath();
   ctx.ellipse(x, y + 1, r * 0.72, r, 0, 0, Math.PI * 2);
@@ -1358,6 +1434,18 @@ function drawAcorn(x, y, r) {
 }
 
 function drawLog(log) {
+  if (artReady(ART.bark)) {
+    ctx.save();
+    roundRect(log.x, log.y, log.w, log.h, 8);
+    ctx.clip();
+    ctx.drawImage(ART.bark, log.x, log.y, log.w, log.h);
+    ctx.restore();
+    ctx.strokeStyle = '#2a1a14';
+    ctx.lineWidth = 1.5;
+    roundRect(log.x, log.y, log.w, log.h, 8);
+    ctx.stroke();
+    return;
+  }
   const g = ctx.createLinearGradient(log.x, log.y, log.x, log.y + log.h);
   g.addColorStop(0, '#d9a36a');
   g.addColorStop(0.4, '#8b5a34');
@@ -1416,9 +1504,26 @@ function drawItem(it) {
 }
 
 function drawShot(s) {
-  ctx.fillStyle = s.from === 'duck' ? '#d7f4ff' : '#b6e37a';
+  const cx = s.x + s.w / 2;
+  const cy = s.y + s.h / 2;
+  const r = s.w / 2;
+  if (s.from === 'duck') {
+    ctx.fillStyle = 'rgba(210,236,255,0.42)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.beginPath();
+    ctx.arc(cx - r * 0.28, cy - r * 0.28, Math.max(1.2, r * 0.28), 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
+  ctx.fillStyle = '#b6e37a';
   ctx.beginPath();
-  ctx.arc(s.x + s.w / 2, s.y + s.h / 2, s.w / 2, 0, Math.PI * 2);
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = '#1a1028';
   ctx.lineWidth = 1;
@@ -1433,6 +1538,18 @@ function drawPole(state) {
   ctx.fill();
   const bx = pole.x + 11;
   const by = pole.y + 6;
+  if (artReady(ART.bell)) {
+    if (lit) {
+      ctx.fillStyle = 'rgba(255,226,138,0.42)';
+      ctx.beginPath();
+      ctx.arc(bx, by + 12, 20, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const bw = 38;
+    const bh = bw * (ART.bell.naturalHeight / ART.bell.naturalWidth);
+    ctx.drawImage(ART.bell, bx - bw / 2, by - 8, bw, bh);
+    return;
+  }
   if (lit) {
     ctx.fillStyle = 'rgba(255,226,138,0.45)';
     ctx.beginPath();
@@ -1479,16 +1596,17 @@ function drawEnemy(state, e) {
     ctx.font = '700 11px Trebuchet MS, sans-serif';
     ctx.textAlign = 'center';
     const labelX = clamp(e.x + e.w / 2, state.camX + 48, state.camX + VIEW_W - 48);
-    ctx.fillText('LOCKJAW', labelX, e.y - 16);
+    ctx.fillText('LOCKJAW', labelX, e.y - 30);
     for (let i = 0; i < 3; i++) {
       ctx.fillStyle = i < e.hp ? '#f2c14e' : '#3a2a22';
-      ctx.fillRect(labelX - 16 + i * 12, e.y - 12, 8, 5);
+      ctx.fillRect(labelX - 16 + i * 12, e.y - 24, 8, 5);
     }
     ctx.textAlign = 'left';
   }
 }
 
 function drawDuck(e) {
+  if (blit('duck', e.x + e.w / 2, e.y + e.h, 66, 60, e.face || -1, 0)) return;
   ctx.save();
   ctx.translate(e.x + e.w / 2, e.y + e.h);
   ctx.scale(e.face || -1, 1);
@@ -1534,6 +1652,15 @@ function drawDuck(e) {
 }
 
 function drawRoller(e) {
+  if (artReady(ART.loghead)) {
+    ctx.save();
+    ctx.translate(e.x + e.w / 2, e.y + e.h / 2 + 2);
+    if (e.state === 'roll') ctx.rotate(e.x * 0.05);
+    ctx.scale(e.face || 1, 1);
+    ctx.drawImage(ART.loghead, -36, -22, 72, 42);
+    ctx.restore();
+    return;
+  }
   ctx.save();
   ctx.translate(e.x + e.w / 2, e.y + e.h / 2);
   if (e.state === 'roll') ctx.rotate(e.x * 0.08);
@@ -1563,6 +1690,14 @@ function drawRoller(e) {
 
 function drawBeaver(x, y, w, h, face, opt) {
   const o = opt || {};
+  let sprite = 'bober';
+  let dw = 50;
+  let dh = 56;
+  if (o.boss) { sprite = 'lockjaw'; dw = 80; dh = 84; }
+  else if (o.angry) { sprite = 'kit'; dw = 48; dh = 50; }
+  else if (o.form === 'sap') { sprite = 'sap'; dw = 72; dh = 58; }
+  else if (o.form === 'cap') { sprite = 'cap'; dw = 54; dh = 68; }
+  if (blit(sprite, x + w / 2, y + h, dw, dh, face || 1, o.squash || 0)) return;
   ctx.save();
   ctx.translate(x + w / 2, y + h);
   ctx.scale(face || 1, 1);
@@ -2072,6 +2207,7 @@ function syncContinue() {
   document.getElementById('btn-sound').textContent = soundOn ? 'Sound on' : 'Sound off';
 }
 
+loadArt();
 loadSave();
 bindUI();
 syncContinue();
