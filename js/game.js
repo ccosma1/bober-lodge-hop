@@ -1,5 +1,5 @@
-/* Bober Lodge Hop lh6 — original bank hop. No borrowed characters or tunes. */
-const BUILD = 'lh6';
+/* Bober Lodge Hop lh7 — original bank hop. No borrowed characters or tunes. */
+const BUILD = 'lh7';
 const TILE = 32;
 let VIEW_W = 224;
 let VIEW_H = 360;
@@ -645,16 +645,14 @@ function stepPlayer(state, input) {
   if (input.left && !input.right) p.face = -1;
   if (input.right && !input.left) p.face = 1;
 
+  p.chain = Math.max(0, (p.chain || 0) - STEP);
   if (p.buffer > 0 && (p.grounded || p.coyote > 0)) {
     p.vy = JUMP_V;
     p.grounded = false;
     p.coyote = 0;
     p.buffer = 0;
     p.ride = -1;
-    p.hop = 0.16;
     sfxJump();
-  } else if (p.hop > 0) {
-    p.hop -= STEP;
   } else if (!input.jump && p.vy < JUMP_CUT) {
     p.vy = JUMP_CUT;
   }
@@ -836,8 +834,9 @@ function damageBoss(state, e) {
   }
 }
 
-function interact(state) {
+function interact(state, input) {
   const p = state.player;
+  const held = input || blankInput();
   if (state.mode !== 'play') return;
   for (let i = 0; i < state.items.length; i++) {
     const it = state.items[i];
@@ -865,27 +864,29 @@ function interact(state) {
   for (let i = 0; i < state.enemies.length; i++) {
     const e = state.enemies[i];
     if (!e.alive || !overlap(p, e)) continue;
-    const fromAbove = p.falling && p.prevBottom <= e.y + 14;
-    if (fromAbove) {
-      stomped = true;
-      p.vy = -430;
-      p.grounded = false;
-      p.y = e.y - p.h - 0.5;
-      p.ride = -1;
-      sfxStomp();
-      state.shake = Math.max(state.shake || 0, 0.1);
-      if (e.kind === 'boss') damageBoss(state, e);
-      else if ((e.kind === 'roller' || e.kind === 'tumbler') && e.state !== 'roll') {
-        e.state = 'roll';
-        e.vx = (p.x + p.w / 2 < e.x + e.w / 2 ? 1 : -1) * 250;
-        e.face = Math.sign(e.vx);
-        e.speed = 250;
-      } else {
-        e.alive = false;
-        burst(state, e.x + e.w / 2, e.y, '#e07a5a', 6);
-      }
-      break;
+    const feet = p.prevBottom <= e.y + 14;
+    const fromAbove = p.falling && feet;
+    const chain = (p.chain || 0) > 0 && held.jump && p.vy < 0 && feet;
+    if (!fromAbove && !chain) continue;
+    stomped = true;
+    p.vy = -430;
+    p.grounded = false;
+    p.y = e.y - p.h - 0.5;
+    p.ride = -1;
+    if (held.jump) p.chain = 0.18;
+    sfxStomp();
+    state.shake = Math.max(state.shake || 0, 0.1);
+    if (e.kind === 'boss') damageBoss(state, e);
+    else if ((e.kind === 'roller' || e.kind === 'tumbler') && e.state !== 'roll') {
+      e.state = 'roll';
+      e.vx = (p.x + p.w / 2 < e.x + e.w / 2 ? 1 : -1) * 250;
+      e.face = Math.sign(e.vx);
+      e.speed = 250;
+    } else {
+      e.alive = false;
+      burst(state, e.x + e.w / 2, e.y, '#e07a5a', 6);
     }
+    if (!held.jump) break;
   }
   if (!stomped && p.invuln <= 0 && state.mode === 'play') {
     for (let i = 0; i < state.enemies.length; i++) {
@@ -896,6 +897,25 @@ function interact(state) {
       break;
     }
   }
+  let popped = false;
+  for (let i = 0; i < state.shots.length; i++) {
+    const s = state.shots[i];
+    if (s.dead || !hostileShot(s) || state.mode !== 'play' || !overlap(s, p)) continue;
+    const feet = p.prevBottom <= s.y + 14;
+    const fromAbove = p.falling && feet;
+    const chain = (p.chain || 0) > 0 && held.jump && p.vy < 0 && feet;
+    if (!fromAbove && !chain) continue;
+    s.dead = true;
+    burst(state, s.x + s.w / 2, s.y + s.h / 2, s.from === 'mason' ? '#c46a45' : '#e7f7ff', 5);
+    if (popped) continue;
+    popped = true;
+    if (p.vy > -360) p.vy = -360;
+    p.grounded = false;
+    if (!stomped) p.y = Math.min(p.y, s.y - p.h - 0.5);
+    p.ride = -1;
+    if (held.jump) p.chain = 0.18;
+    sfxStomp();
+  }
   for (let i = 0; i < state.shots.length; i++) {
     const s = state.shots[i];
     if (s.dead) continue;
@@ -905,6 +925,16 @@ function interact(state) {
       continue;
     }
     if (s.from !== 'player') continue;
+    for (let k = 0; k < state.shots.length; k++) {
+      const other = state.shots[k];
+      if (other === s || other.dead || !hostileShot(other) || !overlap(s, other)) continue;
+      s.dead = true;
+      other.dead = true;
+      burst(state, other.x + other.w / 2, other.y + other.h / 2, '#e7f7ff', 5);
+      sfxBubble();
+      break;
+    }
+    if (s.dead) continue;
     for (let j = 0; j < state.enemies.length; j++) {
       const e = state.enemies[j];
       if (!e.alive || !overlap(s, e)) continue;
@@ -1119,7 +1149,7 @@ function advance(state, input) {
   for (let i = 0; i < state.enemies.length; i++) stepEnemy(state, state.enemies[i]);
   for (let i = 0; i < state.items.length; i++) stepItem(state, state.items[i]);
   stepShots(state);
-  interact(state);
+  interact(state, input);
   stepParts(state);
   stepBumps(state);
   state.shots = state.shots.filter((s) => !s.dead);
