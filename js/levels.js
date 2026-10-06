@@ -193,7 +193,45 @@ stage({
 
 const FOE = { kit: 'K', leaper: 'L', goose: 'G', duck: 'D', nipper: 'N', tumbler: 'T', icer: 'I', mason: 'Q', roller: 'R' };
 
+const MID = {
+  '4-1': 'rise', '4-2': 'roll', '4-3': 'gaps', '4-4': 'rise',
+  '4-5': 'roll', '4-6': 'gaps', '4-7': 'rise', '4-8': 'roll',
+  '5-1': 'gaps', '5-2': 'rise', '5-3': 'roll', '5-4': 'gaps',
+  '5-5': 'rise', '5-6': 'roll', '5-7': 'gaps', '5-8': 'rise',
+  '6-1': 'roll', '6-2': 'rise', '6-3': 'gaps', '6-4': 'roll',
+  '6-5': 'gaps', '6-6': 'rise', '6-7': 'roll', '6-8': 'gaps',
+  '7-1': 'gaps', '7-2': 'roll', '7-3': 'rise', '7-4': 'gaps',
+  '7-5': 'roll', '7-6': 'rise', '7-7': 'gaps', '7-8': 'roll',
+  '8-1': 'roll', '8-2': 'gaps', '8-3': 'rise', '8-4': 'roll',
+  '8-5': 'gaps', '8-6': 'rise', '8-7': 'roll', '8-8': 'gaps',
+  '9-1': 'rise', '9-2': 'gaps', '9-3': 'roll', '9-4': 'rise',
+  '9-5': 'gaps', '9-6': 'roll', '9-7': 'rise',
+  '10-1': 'gaps'
+};
+
+const TAIL = {
+  '4-1': 'gaps', '4-2': 'island', '4-3': 'rise', '4-4': 'roll',
+  '4-5': 'island', '4-6': 'rise', '4-7': 'gaps', '4-8': 'island',
+  '5-1': 'rise', '5-2': 'island', '5-3': 'gaps', '5-4': 'roll',
+  '5-5': 'island', '5-6': 'gaps', '5-7': 'rise', '5-8': 'roll',
+  '6-1': 'island', '6-2': 'gaps', '6-3': 'rise', '6-4': 'island',
+  '6-5': 'roll', '6-6': 'gaps', '6-7': 'rise', '6-8': 'island',
+  '7-1': 'roll', '7-2': 'rise', '7-3': 'island', '7-4': 'roll',
+  '7-5': 'gaps', '7-6': 'island', '7-7': 'rise', '7-8': 'gaps',
+  '8-1': 'island', '8-2': 'rise', '8-3': 'gaps', '8-4': 'island',
+  '8-5': 'roll', '8-6': 'gaps', '8-7': 'island', '8-8': 'rise',
+  '9-1': 'roll', '9-2': 'rise', '9-3': 'island', '9-4': 'gaps',
+  '9-5': 'roll', '9-6': 'island', '9-7': 'gaps',
+  '10-1': 'rise'
+};
+
 function lay(meta, script) {
+  if (MID[meta.id]) {
+    const at = script.indexOf('pit ');
+    if (at >= 0) script = script.slice(0, at) + 'pit ' + MID[meta.id] + ' ' + script.slice(at + 4);
+    else script += ' ' + MID[meta.id];
+  }
+  if (TAIL[meta.id]) script += ' ' + TAIL[meta.id];
   const H = 16;
   const GROUND = 13;
   const cols = [];
@@ -245,6 +283,41 @@ function lay(meta, script) {
       pad(6);
       gapFromEnemy(6);
       push(H);
+      return;
+    }
+    if (tok === 'island' || tok === 'gaps' || tok === 'rise' || tok === 'roll') {
+      const fl0 = resumeFloor();
+      for (let i = 0; i < 8; i++) push(fl0);
+      gapFromEnemy(8);
+      const fl = resumeFloor();
+      if (tok === 'rise') {
+        let y = fl;
+        const start = fl;
+        for (let s = 0; s < 4; s++) { y = Math.max(9, y - 1); push(y); }
+        for (let i = 0; i < 5; i++) push(y);
+        while (y < start) { y += 1; push(y); }
+        for (let i = 0; i < 4; i++) push(y);
+        return;
+      }
+      if (tok === 'roll') {
+        let y = fl;
+        const start = fl;
+        [-1, -1, 0, 0, 1, -1, 0, 0, 0, 1, 1, 0, 0].forEach((d) => {
+          y = Math.max(9, Math.min(GROUND, y + d));
+          push(y);
+        });
+        while (y < start) { y += 1; push(y); }
+        while (y > start) { y -= 1; push(y); }
+        for (let i = 0; i < 3; i++) push(start);
+        return;
+      }
+      const hops = tok === 'gaps' ? 3 : 2;
+      const land = tok === 'gaps' ? 4 : 5;
+      for (let h = 0; h < hops; h++) {
+        push(H);
+        for (let i = 0; i < land; i++) push(fl);
+      }
+      for (let i = 0; i < 3; i++) push(fl);
       return;
     }
     if (tok === 'wide') {
