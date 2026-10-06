@@ -1,5 +1,5 @@
-/* Bober Lodge Hop lh7 — original bank hop. No borrowed characters or tunes. */
-const BUILD = 'lh7';
+/* Bober Lodge Hop lh8 — original bank hop. No borrowed characters or tunes. */
+const BUILD = 'lh8';
 const TILE = 32;
 let VIEW_W = 224;
 let VIEW_H = 360;

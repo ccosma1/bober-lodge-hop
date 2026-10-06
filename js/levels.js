@@ -193,49 +193,12 @@ stage({
 
 const FOE = { kit: 'K', leaper: 'L', goose: 'G', duck: 'D', nipper: 'N', tumbler: 'T', icer: 'I', mason: 'Q', roller: 'R' };
 
-const MID = {
-  '4-1': 'rise', '4-2': 'roll', '4-3': 'gaps', '4-4': 'rise',
-  '4-5': 'roll', '4-6': 'gaps', '4-7': 'rise', '4-8': 'roll',
-  '5-1': 'gaps', '5-2': 'rise', '5-3': 'roll', '5-4': 'gaps',
-  '5-5': 'rise', '5-6': 'roll', '5-7': 'gaps', '5-8': 'rise',
-  '6-1': 'roll', '6-2': 'rise', '6-3': 'gaps', '6-4': 'roll',
-  '6-5': 'gaps', '6-6': 'rise', '6-7': 'roll', '6-8': 'gaps',
-  '7-1': 'gaps', '7-2': 'roll', '7-3': 'rise', '7-4': 'gaps',
-  '7-5': 'roll', '7-6': 'rise', '7-7': 'gaps', '7-8': 'roll',
-  '8-1': 'roll', '8-2': 'gaps', '8-3': 'rise', '8-4': 'roll',
-  '8-5': 'gaps', '8-6': 'rise', '8-7': 'roll', '8-8': 'gaps',
-  '9-1': 'rise', '9-2': 'gaps', '9-3': 'roll', '9-4': 'rise',
-  '9-5': 'gaps', '9-6': 'roll', '9-7': 'rise',
-  '10-1': 'gaps'
-};
-
-const TAIL = {
-  '4-1': 'gaps', '4-2': 'island', '4-3': 'rise', '4-4': 'roll',
-  '4-5': 'island', '4-6': 'rise', '4-7': 'gaps', '4-8': 'island',
-  '5-1': 'rise', '5-2': 'island', '5-3': 'gaps', '5-4': 'roll',
-  '5-5': 'island', '5-6': 'gaps', '5-7': 'rise', '5-8': 'roll',
-  '6-1': 'island', '6-2': 'gaps', '6-3': 'rise', '6-4': 'island',
-  '6-5': 'roll', '6-6': 'gaps', '6-7': 'rise', '6-8': 'island',
-  '7-1': 'roll', '7-2': 'rise', '7-3': 'island', '7-4': 'roll',
-  '7-5': 'gaps', '7-6': 'island', '7-7': 'rise', '7-8': 'gaps',
-  '8-1': 'island', '8-2': 'rise', '8-3': 'gaps', '8-4': 'island',
-  '8-5': 'roll', '8-6': 'gaps', '8-7': 'island', '8-8': 'rise',
-  '9-1': 'roll', '9-2': 'rise', '9-3': 'island', '9-4': 'gaps',
-  '9-5': 'roll', '9-6': 'island', '9-7': 'gaps',
-  '10-1': 'rise'
-};
-
 function lay(meta, script) {
-  if (MID[meta.id]) {
-    const at = script.indexOf('pit ');
-    if (at >= 0) script = script.slice(0, at) + 'pit ' + MID[meta.id] + ' ' + script.slice(at + 4);
-    else script += ' ' + MID[meta.id];
-  }
-  if (TAIL[meta.id]) script += ' ' + TAIL[meta.id];
   const H = 16;
   const GROUND = 13;
   const cols = [];
   const ents = [];
+  const marks = [];
   const push = (floor) => cols.push(floor);
   function topFloor() {
     for (let i = cols.length - 1; i >= 0; i--) if (cols[i] < H) return cols[i];
@@ -280,9 +243,57 @@ function lay(meta, script) {
       return;
     }
     if (tok === 'pit') {
-      pad(6);
-      gapFromEnemy(6);
+      const fl = resumeFloor();
+      for (let i = 0; i < 8; i++) push(fl);
+      gapFromEnemy(8);
       push(H);
+      return;
+    }
+    if (tok.indexOf('creek') === 0) {
+      const digits = tok.slice(5);
+      if (!/^[0-2]+$/.test(digits)) throw new Error(meta.id + ' creek ' + tok);
+      const fl = resumeFloor();
+      for (let i = 0; i < 8; i++) push(fl);
+      gapFromEnemy(10);
+      for (let i = 0; i < digits.length; i++) {
+        const row = 13 - parseInt(digits[i], 10);
+        for (let k = 0; k < 4; k++) {
+          marks.push({ x: cols.length, y: row, ch: '=' });
+          push(H);
+        }
+        if (i < digits.length - 1) push(H);
+      }
+      for (let i = 0; i < 6; i++) push(fl);
+      return;
+    }
+    if (tok === 'ferry') {
+      const fl = resumeFloor();
+      for (let i = 0; i < 10; i++) push(fl);
+      gapFromEnemy(12);
+      marks.push({ x: cols.length, y: GROUND, ch: 'M' });
+      for (let i = 0; i < 4; i++) push(H);
+      for (let i = 0; i < 8; i++) push(fl);
+      return;
+    }
+    if (tok === 'perch' || tok === 'plateau') {
+      let y = resumeFloor();
+      const home = y;
+      for (let i = 0; i < 8; i++) push(y);
+      for (let s = 0; s < 3; s++) { y = Math.max(9, y - 1); push(y); }
+      for (let i = 0; i < 4; i++) push(y);
+      if (tok === 'plateau') {
+        push(H);
+        for (let i = 0; i < 4; i++) push(y);
+      }
+      y = Math.max(9, y - 1);
+      for (let i = 0; i < 4; i++) push(y);
+      push(Math.max(8, y - 1));
+      for (let i = 0; i < 4; i++) push(y);
+      push(y);
+      ents.push({ x: cols.length - 1, ch: tok === 'plateau' ? 'I' : 'N' });
+      for (let i = 0; i < 4; i++) push(y);
+      while (y < home) { y += 1; push(y); }
+      for (let i = 0; i < 10; i++) push(home);
       return;
     }
     if (tok === 'island' || tok === 'gaps' || tok === 'rise' || tok === 'roll') {
@@ -381,6 +392,10 @@ function lay(meta, script) {
     for (let x = 0; x < cols.length; x++) row.push(y >= cols[x] ? '#' : '.');
     rows.push(row);
   }
+  marks.forEach((m) => {
+    if (rows[m.y][m.x] !== '.') throw new Error(meta.id + ' mark ' + m.ch + ' at ' + m.x);
+    rows[m.y][m.x] = m.ch;
+  });
   ents.forEach((e) => {
     if (cols[e.x] >= H) throw new Error(meta.id + ' ent on pit ' + e.ch);
     const y = e.above ? cols[e.x] - e.above : cols[e.x] - 1;
@@ -397,105 +412,105 @@ function lay(meta, script) {
   }, meta));
 }
 
-lay({ id: '4-1', world: 4, theme: 'cedar', name: 'Cedar Path', time: 280, hint: 'Leapers hop. Stomp them on the flat.', line: 'The light follows a thin cedar creek.', after: 'The shade lets him through.' },
-  'flat16 leaper flat8 pit flat10 up2 flat8 leaper down2 flat12 pit flat8 kit flat10 coin6');
+lay({ id: '4-1', world: 4, theme: 'cedar', name: 'Cedar Path', time: 280, hint: 'Hop the stones across the creek.', line: 'The light follows a thin cedar creek.', after: 'The shade lets him through.' },
+  'creek01210121 flat14 leaper flat24 coin6');
 lay({ id: '4-2', world: 4, theme: 'cedar', name: 'Low Shade', time: 280, line: 'Roots step down toward the thread of water.', after: 'The low shade is behind him.' },
-  'up3 flat10 leaper down1 flat8 pit flat8 down1 leaper down1 flat12 kit flat10 coin6 flat10 leaper up1 flat14 down1 flat8');
+  'flat8 creek10121012 flat12 leaper flat20 coin6');
 lay({ id: '4-3', world: 4, theme: 'cedar', name: 'Twin Leapers', time: 280, line: 'Two reds hop the same stretch of shade.', after: 'Both leapers are in the mud.' },
-  'flat6 up2 flat12 leaper down2 pit flat10 up2 flat12 leaper down2 flat8 kit coin6 flat10 leaper flat12 up2 flat8 down2');
+  'creek01212101 flat10 cap flat28 coin6');
 lay({ id: '4-4', world: 4, theme: 'cedar', name: 'Sprig Shelf', time: 280, line: 'A lodge cap waits on a short shelf.', after: 'He wears the sprig into the cedars.' },
-  'flat6 cap up2 flat6 brick down1 flat12 leaper pit flat14 leaper flat8 coin6 flat10 leaper up2 flat16 down2 flat6');
+  'flat6 creek21012101 flat16 leaper flat18 coin4');
 lay({ id: '4-5', world: 4, theme: 'cedar', name: 'Acorn Shade', time: 280, line: 'Acorns glint where the creek should be wide.', after: 'The acorns are pocketed. The creek is still thin.' },
-  'coin6 up1 flat8 coin4 wide flat10 leaper flat12 pit flat8 kit flat8 leaper coin4 flat10 leaper flat12');
+  'creek10121011 flat18 kit flat20 coin6');
 lay({ id: '4-6', world: 4, theme: 'cedar', name: 'Stair Shade', time: 280, line: 'The bank climbs, then gives the water back.', after: 'He comes down to the thread again.' },
-  'up1 flat5 up1 flat5 up1 flat8 leaper down1 flat5 down1 flat5 down1 pit flat10 leaper flat8 kit coin6 flat10 leaper up1 flat8 up1 flat12 down2 flat6');
+  'flat10 creek12101212 flat12 leaper flat18 coin6');
 lay({ id: '4-7', world: 4, theme: 'cedar', name: 'Brick Shade', time: 280, line: 'Someone bricked a shelf above the cedars.', after: 'The bricks stay. He does not.' },
-  'flat8 brick ask up1 flat6 brick flat10 leaper down1 pit flat12 kit flat10 leaper flat8 coin6 flat10 leaper flat16');
+  'creek01212121 flat14 brick flat12 leaper flat8 coin6');
 lay({ id: '4-8', world: 4, theme: 'cedar', name: 'Three Cuts', time: 280, line: 'Three cuts in the shade. The creek shows through each one.', after: 'Cedar Shade opens onto reeds.' },
-  'up2 pit flat10 leaper down1 pit flat12 kit down1 pit flat10 leaper flat10 coin6 flat10 leaper up2 flat14 down1 flat10 down1');
+  'flat4 creek12101211 flat20 leaper flat12 coin8');
 
 lay({ id: '5-1', world: 5, theme: 'reed', name: 'Goose Mud', time: 280, hint: 'Geese spit faster bubbles. Hop them.', line: 'A long neck stands in the reed mud.', after: 'The goose keeps its bank. He keeps the creek.' },
-  'flat16 goose flat14 pit flat12 duck flat12 leaper flat10 coin6 up1 flat6 down1');
+  'flat30 goose flat28 duck flat30 coin8');
 lay({ id: '5-2', world: 5, theme: 'reed', name: 'Reed Hop', time: 280, line: 'A leaper and a goose share the reeds.', after: 'The hop carries him between them.' },
-  'flat8 leaper up2 flat16 goose down2 pit flat12 kit flat10 coin6 flat12 kit up1 flat16 down1 flat8');
+  'flat22 goose flat34 duck flat40 coin6');
 lay({ id: '5-3', world: 5, theme: 'reed', name: 'Two Bills', time: 280, line: 'A duck and a goose. The bubbles come from both.', after: 'He hops both bills.' },
-  'up1 flat16 duck down1 flat18 goose pit flat12 leaper flat8 coin6 flat12 kit flat10 up2 down2 flat8');
+  'flat18 duck flat30 goose flat52 coin8');
 lay({ id: '5-4', world: 5, theme: 'reed', name: 'High Reed', time: 280, line: 'The reeds grow up a stair and look down on the thread.', after: 'The high reed bends, and he goes on.' },
-  'up3 flat16 goose down2 flat6 down1 pit flat12 leaper flat10 kit coin6 flat12 kit flat16 up1 flat10 down1');
+  'cap flat26 goose flat24 duck flat56 coin6');
 lay({ id: '5-5', world: 5, theme: 'reed', name: 'Bubble Run', time: 280, line: 'Bubbles cross the path one after another.', after: 'The run is wet, and he is through it.' },
-  'flat8 up1 flat18 goose down1 flat10 pit flat16 duck flat12 coin6 flat12 leaper up2 flat10 down2 flat6');
+  'flat20 goose flat36 duck flat16 ask flat12 coin6');
 lay({ id: '5-6', world: 5, theme: 'reed', name: 'Cap Reed', time: 280, line: 'The sprig cap sits before the long-necked mud.', after: 'The cap stays on. The reeds do not.' },
-  'cap flat14 goose flat12 pit flat12 leaper flat12 duck coin6 flat12 kit flat12 up1 down1 flat8');
+  'flat16 duck flat26 goose flat22 duck flat18 coin6');
 lay({ id: '5-7', world: 5, theme: 'reed', name: 'Long Bubbles', time: 280, line: 'The creek is deeper here, and still not a river.', after: 'Long bubbles pop behind him.' },
-  'flat18 goose pit flat16 duck flat10 pit flat12 leaper coin6 flat12 kit up1 flat12 down1 flat8');
+  'flat34 goose flat20 duck flat62 coin8');
 lay({ id: '5-8', world: 5, theme: 'reed', name: 'Three Geese', time: 280, line: 'Three geese hold the thread between the reeds.', after: 'Reed Water gives way to brick and clay.' },
-  'cap flat16 goose flat18 goose up1 flat8 down1 flat16 goose flat8 pit flat8 coin6');
+  'sap flat24 goose flat32 duck flat70 coin6');
 
-lay({ id: '6-1', world: 6, theme: 'kiln', name: 'Nipper Yard', time: 280, hint: 'Nippers run at you. Stomp them.', line: 'A second mill is still chewing the bank.', after: 'The yard lets him pass.' },
-  'flat10 up1 flat12 nipper down1 pit flat12 kit flat10 nipper flat8 coin6 flat10 nipper up2 flat12 down2 flat8');
+lay({ id: '6-1', world: 6, theme: 'kiln', name: 'Nipper Yard', time: 280, hint: 'The nipper waits on the shelf. Climb to him.', line: 'A second mill is still chewing the bank.', after: 'The yard lets him pass.' },
+  'perch flat60 coin6');
 lay({ id: '6-2', world: 6, theme: 'kiln', name: 'Twin Nips', time: 280, line: 'Two nippers pace the clay between the cuts.', after: 'Both nips are behind him.' },
-  'flat12 nipper flat12 pit flat12 nipper up2 flat6 down2 flat8 kit coin6 flat10 nipper flat10 up1 flat10 down1');
+  'flat8 perch flat54 coin6');
 lay({ id: '6-3', world: 6, theme: 'kiln', name: 'Kiln Stair', time: 280, line: 'Bricks climb, and a nipper waits at the top of the habit.', after: 'He comes down off the kiln stair.' },
-  'flat4 brick up2 flat6 brick up1 flat10 nipper down3 flat18 leaper flat8 coin6 flat10 nipper up1 flat16 down1 flat12');
+  'flat16 perch flat48 coin8');
 lay({ id: '6-4', world: 6, theme: 'kiln', name: 'Sap Yard', time: 280, line: 'Sap gathers again. The nipper does not care.', after: 'The chip is ready if he needs it.' },
-  'sap flat12 nipper flat10 pit flat12 leaper flat10 nipper coin6 flat10 nipper up3 flat14 down2 flat8 down1');
+  'flat4 sap perch flat56 coin6');
 lay({ id: '6-5', world: 6, theme: 'kiln', name: 'High Kiln', time: 280, line: 'The high kiln looks over a thin shine of water.', after: 'The high clay is quiet.' },
-  'up3 flat10 nipper down1 flat6 down2 pit flat12 kit flat10 nipper coin6 flat10 nipper flat18 up2 flat10 down2');
+  'flat12 perch flat52 coin6');
 lay({ id: '6-6', world: 6, theme: 'kiln', name: 'Mill Birds', time: 280, line: 'A goose stands where the new mill meets the old habit.', after: 'Bird and nipper both lose the path.' },
-  'up2 flat14 nipper down2 flat22 goose flat14 leaper pit flat10 coin6 flat12 kit flat12');
+  'flat20 perch flat44 coin8');
 lay({ id: '6-7', world: 6, theme: 'kiln', name: 'Three Nips', time: 280, line: 'Three nippers, three stretches of chewed bank.', after: 'The third nip turns back.' },
-  'flat10 nipper pit flat12 nipper pit flat12 nipper flat8 kit coin6 flat10 nipper up1 flat14 down1 flat10');
+  'flat10 perch flat50 coin6');
 lay({ id: '6-8', world: 6, theme: 'kiln', name: 'Brick Ask', time: 280, line: 'The kiln asks nothing. The bricks just sit there.', after: 'Clay Kiln opens onto the empty cut.' },
-  'ask up1 flat6 brick flat10 nipper down1 pit flat14 duck flat12 nipper coin6 flat12 kit flat12 up2 down2 flat10');
+  'flat14 cap perch flat40 coin6');
 
-lay({ id: '7-1', world: 7, theme: 'rope', name: 'First Tumble', time: 280, hint: 'Tumblers roll when you get close.', line: 'The creekbed is an empty cut. A log starts to turn.', after: 'The first tumbler stops on a wall of air.' },
-  'flat16 tumbler flat14 roller flat10 pit flat10 kit coin6 flat12 tumbler up1 flat14 down1 flat10');
+lay({ id: '7-1', world: 7, theme: 'rope', name: 'First Tumble', time: 280, hint: 'Wait for the log, then ride it over.', line: 'The creekbed is an empty cut. A log starts to turn.', after: 'The first tumbler stops on a wall of air.' },
+  'flat6 ferry up1 flat10 tumbler flat12 down1 flat36 coin6');
 lay({ id: '7-2', world: 7, theme: 'rope', name: 'Roll And Tumble', time: 280, line: 'A loghead, then a rounder one that waits.', after: 'Both logs have had their roll.' },
-  'up1 flat12 roller down1 flat16 tumbler flat10 pit flat8 kit coin6 flat12 tumbler up2 flat12 down2 flat10');
+  'flat10 ferry up1 flat8 tumbler flat16 down1 flat30 coin8');
 lay({ id: '7-3', world: 7, theme: 'rope', name: 'Rope Stair', time: 280, line: 'Rope and stair cross the cut where water should run.', after: 'He climbs, and the cut stays empty.' },
-  'up2 flat10 tumbler down2 flat12 pit flat10 nipper flat8 coin6 flat16 kit flat20 up1 flat14 down1');
+  'flat4 ferry flat8 ferry up1 flat10 tumbler flat8 down1 flat20 coin6');
 lay({ id: '7-4', world: 7, theme: 'rope', name: 'Twin Logs', time: 280, line: 'Two tumblers guard a long scaffold of mud.', after: 'Twin logs lie still.' },
-  'flat14 tumbler flat16 tumbler flat10 pit flat8 coin6 flat12 tumbler up1 flat18 down1 flat12');
+  'flat14 ferry up1 flat12 tumbler flat10 down1 flat30 coin6');
 lay({ id: '7-5', world: 7, theme: 'rope', name: 'Tumble Nip', time: 280, line: 'A tumbler, then a nipper who heard it.', after: 'The cut is louder, and he is past it.' },
-  'up1 flat14 tumbler down1 flat14 nipper flat10 pit flat10 leaper coin6 flat12 kit flat12 up2 down2 flat8');
+  'flat8 ferry up1 flat14 tumbler flat18 down1 flat28 coin6');
 lay({ id: '7-6', world: 7, theme: 'rope', name: 'Cap Rope', time: 280, line: 'The sprig cap hangs where the ropes used to.', after: 'He takes the cap across the cut.' },
-  'cap flat14 tumbler flat12 pit flat12 leaper flat8 coin6 flat12 kit up2 flat18 down2 flat10');
+  'cap flat12 ferry up1 flat8 tumbler flat14 down1 flat32 coin8');
 lay({ id: '7-7', world: 7, theme: 'rope', name: 'Three Logs', time: 280, line: 'Three logs over the empty creek.', after: 'The third log rolls itself out.' },
-  'flat10 roller flat14 tumbler flat12 pit flat14 tumbler flat8 kit coin6 flat12 tumbler flat14');
+  'flat18 ferry up1 flat6 tumbler flat12 down1 flat32 coin6');
 lay({ id: '7-8', world: 7, theme: 'rope', name: 'Wide Cut', time: 280, line: 'One wide cut, then the bank remembers how to be ice.', after: 'Rope Run ends. The air is colder.' },
-  'flat10 wide flat14 tumbler flat12 pit flat10 nipper coin6 flat12 kit up1 flat12 down1 flat8');
+  'flat4 ferry flat14 ferry up1 flat12 tumbler flat8 down1 flat16 coin6');
 
-lay({ id: '8-1', world: 8, theme: 'frost', name: 'First Ice', time: 280, hint: 'Icers slide fast. Land on them.', line: 'Snow sits on the pines. The creek is ice.', after: 'The first ice slides past under his feet.' },
-  'flat14 icer flat10 pit flat12 icer up1 flat8 down1 flat8 coin6 flat10 icer up2 flat14 down2 flat8');
+lay({ id: '8-1', world: 8, theme: 'frost', name: 'First Ice', time: 280, hint: 'Climb the shelf. The icer cannot come down.', line: 'Snow sits on the pines. The creek is ice.', after: 'The first ice slides past under his feet.' },
+  'plateau flat52 coin6');
 lay({ id: '8-2', world: 8, theme: 'frost', name: 'Twin Ice', time: 280, line: 'Two icers trade the frozen thread.', after: 'Twin ice is behind him.' },
-  'up2 flat12 icer down2 pit flat14 icer flat10 kit coin6 flat10 icer flat20 up1 flat14 down1');
+  'flat8 plateau flat48 coin6');
 lay({ id: '8-3', world: 8, theme: 'frost', name: 'Frost Stair', time: 280, line: 'The frost stair climbs above the frozen shine.', after: 'He comes down onto the ice again.' },
-  'up3 flat8 icer down2 flat8 pit flat12 leaper flat10 coin6 flat10 icer flat16 up2 flat12 down2 flat6');
+  'flat16 plateau flat44 coin8');
 lay({ id: '8-4', world: 8, theme: 'frost', name: 'Ice And Log', time: 280, line: 'An icer, then a tumbler that does not like the cold.', after: 'Log and ice both stop.' },
-  'up1 flat16 icer down1 flat12 pit flat14 tumbler flat8 coin6 flat12 kit up1 flat16 down1 flat10');
+  'flat6 plateau flat50 coin6');
 lay({ id: '8-5', world: 8, theme: 'frost', name: 'Ice Nip', time: 280, line: 'A nipper learned the ice and got quicker.', after: 'The nip loses the frost.' },
-  'flat12 icer flat14 nipper flat10 pit flat12 icer coin6 flat10 icer flat14 up1 down1 flat10');
+  'flat12 plateau flat46 coin6');
 lay({ id: '8-6', world: 8, theme: 'frost', name: 'Cap Frost', time: 280, line: 'The sprig cap is bright against the snow.', after: 'The cap stays yellow. The bank stays white.' },
-  'cap flat12 icer flat10 pit flat14 icer flat8 kit coin6 flat10 icer flat12 up2 flat10 down1 flat6 down1');
+  'cap flat10 plateau flat42 coin6');
 lay({ id: '8-7', world: 8, theme: 'frost', name: 'Three Ice', time: 280, line: 'Three icers, and under them the water still tries.', after: 'The third slide ends.' },
-  'flat10 icer up1 flat12 icer down1 pit flat14 icer flat8 coin6 flat10 icer up2 flat16 down1 flat10 down1');
+  'flat14 plateau flat40 coin8');
 lay({ id: '8-8', world: 8, theme: 'frost', name: 'Wide Ice', time: 280, line: 'A wide gap in the ice. Beyond it, the reds stacked a dam.', after: 'Frost Bank breaks. The dam shows red.' },
-  'flat8 wide flat14 icer flat12 pit flat12 tumbler coin6 flat12 kit flat12 up1 flat8 down1');
+  'flat4 plateau flat44 coin6');
 
 lay({ id: '9-1', world: 9, theme: 'dam', name: 'Mason Flat', time: 280, hint: 'Masons throw bricks. Hop the brick.', line: 'A mason stands on the logs and throws clay.', after: 'The first brick misses.' },
-  'flat16 mason flat12 pit flat10 kit up1 flat8 down1 flat8 coin6 flat12 kit flat18 up2 flat8 down2');
+  'flat28 mason flat32 ask flat22 coin8');
 lay({ id: '9-2', world: 9, theme: 'dam', name: 'Mason And Nip', time: 280, line: 'The mason throws. The nipper runs under the brick.', after: 'Brick and nipper both miss him.' },
-  'flat14 mason flat16 nipper flat10 pit flat8 coin6 flat12 kit up2 flat16 down2 flat12');
+  'flat20 mason flat36 ask flat36 coin6');
 lay({ id: '9-3', world: 9, theme: 'dam', name: 'Mason Ice', time: 280, line: 'An icer still slides the logs of the dam.', after: 'Ice on the dam does not hold.' },
-  'up2 flat16 mason down2 flat14 icer flat10 pit flat8 kit coin6 flat12 kit flat12 up1 flat10 down1');
+  'flat32 mason flat26 ask flat40 coin8');
 lay({ id: '9-4', world: 9, theme: 'dam', name: 'Two Masons', time: 280, line: 'Two masons. The bricks come in pairs.', after: 'Both masons are off the logs.' },
-  'up1 flat16 mason down1 pit flat18 mason flat10 coin6 flat12 kit up2 flat20 down2 flat12');
+  'flat18 mason flat36 mason flat30 ask flat16 coin6');
 lay({ id: '9-5', world: 9, theme: 'dam', name: 'Dam Mix', time: 280, line: 'Leaper, tumbler, and the stacked reds.', after: 'The mix breaks up along the logs.' },
-  'brick flat14 mason up1 flat12 leaper down1 pit flat14 tumbler coin6 flat12 kit flat18 up1 flat12 down1');
+  'flat26 mason flat38 ask flat36 coin8');
 lay({ id: '9-6', world: 9, theme: 'dam', name: 'Hard Dam', time: 280, line: 'The lake behind the logs is the river that never arrived.', after: 'He is closer to the crack in the dam.' },
-  'flat14 mason flat12 pit flat14 nipper flat10 pit flat12 icer coin6 flat12 kit flat14');
+  'flat22 mason flat34 mason flat34 ask flat18 coin6');
 lay({ id: '9-7', world: 9, theme: 'dam', name: 'Cap Dam', time: 280, line: 'The sprig cap, then everything the reds still have.', after: 'The cap goes on. The keeper is next.' },
-  'cap up1 flat16 mason down1 flat18 goose flat10 wide flat12 nipper flat12 icer coin6');
+  'cap flat24 mason flat30 ask flat40 coin8');
 
 stage({
   id: '9-8',
@@ -523,7 +538,7 @@ stage({
 });
 
 lay({ id: '10-1', world: 10, theme: 'source', name: 'Thin Spring', time: 280, hint: 'The spring is close.', line: 'Past the dam, the water is a spring under the pines.', after: 'The thin spring leads to one last rope.' },
-  'up1 flat14 mason down1 flat12 pit flat14 icer flat8 up1 flat12 nipper down1 pit flat14 tumbler flat8 coin6');
+  'flat18 mason flat12 pit flat10 up1 flat12 icer flat8 down1 flat8 up1 flat10 tumbler flat8 down1 coin8');
 
 stage({
   id: '10-2',
