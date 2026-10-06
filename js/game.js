@@ -1,5 +1,5 @@
-/* Bober Lodge Hop lh8 — original bank hop. No borrowed characters or tunes. */
-const BUILD = 'lh8';
+/* Bober Lodge Hop lh9 — original bank hop. No borrowed characters or tunes. */
+const BUILD = 'lh9';
 const TILE = 32;
 let VIEW_W = 224;
 let VIEW_H = 360;
@@ -37,7 +37,7 @@ const ctx = canvas.getContext('2d');
 
 const ART = {};
 const FOOT = {
-  bober: 0.661, cap: 0.652, sap: 0.391, kit: 0.594, duck: 0.417, lockjaw: 0.522,
+  bober: 0.629, cap: 0.629, sap: 0.629, kit: 0.594, duck: 0.417, lockjaw: 0.522,
   leaper: 0.329, goose: 0.409, nipper: 0.601, icer: 0.541, mason: 0.600
 };
 
@@ -2280,13 +2280,13 @@ function drawRoller(e) {
 function drawBeaver(x, y, w, h, face, opt) {
   const o = opt || {};
   let sprite = 'bober';
-  let dw = 50;
-  let dh = 56;
+  let dw = 73;
+  let dh = 64;
   if (o.sprite) { sprite = o.sprite; dw = o.dw || dw; dh = o.dh || dh; }
   else if (o.boss) { sprite = 'lockjaw'; dw = 80; dh = 84; }
   else if (o.angry) { sprite = 'kit'; dw = 48; dh = 50; }
-  else if (o.form === 'sap') { sprite = 'sap'; dw = 72; dh = 58; }
-  else if (o.form === 'cap') { sprite = 'cap'; dw = 54; dh = 68; }
+  else if (o.form === 'sap') { sprite = 'sap'; dw = 73; dh = 64; }
+  else if (o.form === 'cap') { sprite = 'cap'; dw = 73; dh = 69; }
   if (blit(sprite, x + w / 2, y + h, dw, dh, face || 1, o.squash || 0, { bob: o.bob || 0, lean: o.lean || 0, sway: o.sway || 0 })) return;
   ctx.save();
   ctx.translate(x + w / 2, y + h);
