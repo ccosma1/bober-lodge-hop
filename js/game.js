@@ -1,5 +1,5 @@
-/* Bober Lodge Hop lh9 — original bank hop. No borrowed characters or tunes. */
-const BUILD = 'lh9';
+/* Bober Burrow Hop lh10 — original bank hop. No borrowed characters or tunes. */
+const BUILD = 'lh10';
 const TILE = 32;
 let VIEW_W = 224;
 let VIEW_H = 360;
@@ -16,7 +16,7 @@ const ACC = 1280;
 const FRIC = 1700;
 const MAX_FALL = 860;
 const SAVE_KEY = 'bober-lodge-hop-v1';
-const SOLID = new Set(['#', 'B', '?', '!', 'S', 'u']);
+const SOLID = new Set(['#', 'B', '?', '!', 'S', 'u', 'X']);
 
 const THEMES = {
   bank: { sky: ['#8fd4f8', '#e7f7ff'], hill: '#67b85a', hill2: '#3e8f4a', water: '#3aa0c8', night: false, tree: 'pine' },
@@ -29,7 +29,8 @@ const THEMES = {
   rope: { sky: ['#e7b07a', '#f8e6c8'], hill: '#8a5a3a', hill2: '#5c3a2a', water: '#2a6a78', night: false, tree: 'pine' },
   frost: { sky: ['#c5dff2', '#f4f7fb'], hill: '#d5e4ee', hill2: '#8fb4c8', water: '#7eb6d4', night: false, tree: 'frost', snow: true },
   dam: { sky: ['#e39b78', '#f6d2b4'], hill: '#8a4030', hill2: '#5c2a22', water: '#2a6890', night: false, tree: 'cedar' },
-  source: { sky: ['#f2c48a', '#8fd4f8'], hill: '#2f6a48', hill2: '#1a3a28', water: '#3aa0c8', night: false, tree: 'pine' }
+  source: { sky: ['#f2c48a', '#8fd4f8'], hill: '#2f6a48', hill2: '#1a3a28', water: '#3aa0c8', night: false, tree: 'pine' },
+  burrow: { sky: ['#2a2118', '#5a4030'], hill: '#3a2a1c', hill2: '#24180f', water: '#1d3a38', night: false, tree: 'pine', burrow: true }
 };
 
 const canvas = document.getElementById('view');
@@ -287,7 +288,7 @@ function makePlayer(x, foot) {
     vx: 0, vy: 0, face: 1, form: 'small',
     grounded: false, coyote: 0, buffer: 0, invuln: 0,
     run: 0, squash: 0, pose: 0, ride: -1, prevBottom: foot,
-    falling: false, spitCool: 0, wasGround: false, hop: 0, dustMark: -1
+    falling: false, spitCool: 0, wasGround: false, hop: 0, dustMark: -1, stones: 0
   };
 }
 
@@ -302,6 +303,8 @@ function makeEnemy(kind, x, foot) {
     tumbler: { w: 30, h: 26, speed: 36 },
     icer: { w: 26, h: 24, speed: 90 },
     mason: { w: 28, h: 28, speed: 0 },
+    grub: { w: 30, h: 16, speed: 34 },
+    drip: { w: 22, h: 18, speed: 0 },
     boss: { w: 52, h: 56, speed: 52 }
   }[kind];
   const still = kind === 'duck' || kind === 'goose' || kind === 'mason';
@@ -377,6 +380,17 @@ function createState(id, opts) {
         rows[y][x] = '.';
       } else if (c === 'Q') {
         enemies.push(makeEnemy('mason', px + 1, foot));
+        rows[y][x] = '.';
+      } else if (c === 'U') {
+        enemies.push(makeEnemy('grub', px + 1, foot));
+        rows[y][x] = '.';
+      } else if (c === 'V') {
+        const drip = makeEnemy('drip', px + 4, foot);
+        drip.state = 'hang';
+        drip.y = y * TILE + 2;
+        drip.vx = 0;
+        drip.vy = 0;
+        enemies.push(drip);
         rows[y][x] = '.';
       } else if (c === 'J') {
         const boss = makeEnemy('boss', px - 10, foot);
@@ -567,9 +581,45 @@ function spawnItem(state, kind, tx, ty) {
   });
 }
 
+function breakCrate(state, tx, ty) {
+  if (ty < 0 || tx < 0 || ty >= state.h || tx >= state.w) return;
+  if (state.rows[ty][tx] !== 'X') return;
+  state.rows[ty][tx] = '.';
+  const drop = (state.def.drops && state.def.drops[tx + ',' + ty]) || 'stone';
+  burst(state, tx * TILE + 16, ty * TILE + 16, '#c4a574', 8);
+  sfxBreak();
+  if (drop === 'life') {
+    state.lives = Math.min(9, state.lives + 1);
+    burst(state, tx * TILE + 16, ty * TILE, '#f2c14e', 6);
+    return;
+  }
+  if (drop === 'coin') {
+    grant(state, 8);
+    return;
+  }
+  spawnItem(state, drop, tx, ty);
+}
+
 function doSpit(state) {
   const p = state.player;
-  if (p.form !== 'sap' || p.spitCool > 0) return;
+  if (p.spitCool > 0) return;
+  if ((p.stones || 0) > 0) {
+    p.stones -= 1;
+    p.spitCool = 0.42;
+    state.shots.push({
+      x: p.face > 0 ? p.x + p.w - 2 : p.x - 14,
+      y: p.y + 10,
+      w: 14, h: 14,
+      vx: p.face * 230,
+      vy: -30,
+      life: 0.85,
+      from: 'stone',
+      dead: false
+    });
+    tone(180, 0.06, 'square', 0.04, 90);
+    return;
+  }
+  if (p.form !== 'sap') return;
   p.spitCool = 0.32;
   state.shots.push({
     x: p.face > 0 ? p.x + p.w : p.x - 12,
@@ -675,7 +725,7 @@ function stepPlayer(state, input) {
   p.wasGround = p.grounded;
   if (hit.ceiling) tryHit(state, hit.ceiling.tx, hit.ceiling.ty);
   if (p.grounded && Math.abs(p.vx) > 24) {
-    p.run += STEP * (7.5 + Math.min(3.5, Math.abs(p.vx) / 70));
+    p.run += STEP * (12.5 + Math.min(4, Math.abs(p.vx) / 55));
   }
   const aim = clamp(p.vx / RUN, -1, 1);
   p.pose += (aim - p.pose) * Math.min(1, STEP * 7);
@@ -714,6 +764,14 @@ function pushShot(state, e, speed, w, h, from, life) {
 function stepEnemy(state, e) {
   if (!e.alive) return;
   e.invuln = Math.max(0, e.invuln - STEP);
+  if (e.kind === 'drip' && e.state === 'hang') {
+    const dx = (state.player.x + state.player.w / 2) - (e.x + e.w / 2);
+    if (Math.abs(dx) < 78 && state.player.y > e.y + 8) {
+      e.state = 'fall';
+      e.vy = 60;
+    }
+    return;
+  }
   if (e.kind === 'duck' || e.kind === 'goose' || e.kind === 'mason') {
     e.cool -= STEP;
     if (e.cool <= 0) {
@@ -798,6 +856,12 @@ function stepEnemy(state, e) {
   e.y += vy * STEP;
   const hit = resolveY(state, e, vy);
   e.grounded = hit.grounded;
+  if (e.kind === 'drip' && e.state === 'fall' && e.grounded) {
+    e.state = 'walk';
+    e.speed = 48;
+    e.vx = (state.player.x < e.x ? -1 : 1) * e.speed;
+    e.face = Math.sign(e.vx) || 1;
+  }
   if (e.y > state.h * TILE + 48) e.alive = false;
 }
 
@@ -819,6 +883,14 @@ function stepShots(state) {
     s.life -= STEP;
     s.x += s.vx * STEP;
     s.y += s.vy * STEP;
+    if (s.from === 'stone') s.vy = Math.min(420, (s.vy || 0) + GRAV * 0.35 * STEP);
+    const hx = Math.floor((s.x + s.w / 2) / TILE);
+    const hy = Math.floor((s.y + s.h / 2) / TILE);
+    if ((s.from === 'player' || s.from === 'stone') && tileAt(state, hx, hy) === 'X') {
+      breakCrate(state, hx, hy);
+      s.dead = true;
+      continue;
+    }
     if (s.life <= 0 || isSolidPoint(state, s.x + s.w / 2, s.y + s.h / 2)) s.dead = true;
   }
 }
@@ -845,8 +917,23 @@ function interact(state, input) {
     if (it.kind === 'cap') {
       if (p.form === 'small') setForm(state, 'cap');
       else grant(state, 5);
+    } else if (it.kind === 'stone') {
+      p.stones = (p.stones || 0) + 6;
+      burst(state, p.x + 8, p.y, '#d7d3cc', 5);
+    } else if (it.kind === 'life') {
+      state.lives = Math.min(9, state.lives + 1);
+      burst(state, p.x + 8, p.y, '#f2c14e', 6);
     } else if (p.form !== 'sap') setForm(state, 'sap');
     else grant(state, 5);
+  }
+  if (p.vy >= 0) {
+    const foot = p.y + p.h;
+    const fx0 = Math.floor((p.x + 2) / TILE);
+    const fx1 = Math.floor((p.x + p.w - 2) / TILE);
+    for (let fx = fx0; fx <= fx1; fx++) {
+      const fy = Math.floor((foot + 1) / TILE);
+      if (tileAt(state, fx, fy) === 'X' && foot >= fy * TILE - 1) breakCrate(state, fx, fy);
+    }
   }
   const tiles = rectTiles(p.x, p.y, p.w, p.h);
   for (let i = 0; i < tiles.length; i++) {
@@ -1086,12 +1173,12 @@ function botInput(state) {
         const bottom = (ty + 1) * TILE;
         if (p.y - bottom < 96 && p.y > bottom - 4) want = true;
       }
-      if (p.form === 'sap') {
+      if (p.form === 'sap' || (p.stones || 0) > 0) {
         for (let i = 0; i < state.enemies.length; i++) {
           const e = state.enemies[i];
-          if (!e.alive) continue;
+          if (!e.alive || (e.kind === 'boss' && (p.stones || 0) > 0 && p.form !== 'sap')) continue;
           const dx = (e.x + e.w / 2) - (p.x + p.w / 2);
-          if (dx > 16 && dx < 150 && Math.abs(e.y - p.y) < 36) spit = true;
+          if (dx > 16 && dx < 150 && Math.abs(e.y - p.y) < 48) spit = true;
         }
       }
     }
@@ -1285,6 +1372,34 @@ function drawMotes(state) {
   ctx.globalAlpha = 1;
 }
 
+function drawRoots(state) {
+  const top = ((state.def.ground || 13) - 1) * TILE;
+  const y0 = themeSafe(state, top);
+  ctx.strokeStyle = 'rgba(215,196,164,0.55)';
+  ctx.lineWidth = 1.3;
+  const x0 = state.camX - 20;
+  for (let i = 0; i < 9; i++) {
+    const x = x0 + ((i * 37) % (VIEW_W + 40));
+    const drop = 18 + (i % 4) * 14 + Math.sin(animT * 1.4 + i) * 3;
+    ctx.beginPath();
+    ctx.moveTo(x, y0);
+    ctx.quadraticCurveTo(x + 8, y0 + drop * 0.5, x - 4, y0 + drop);
+    ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(126,206,106,0.8)';
+  for (let i = 0; i < 5; i++) {
+    const x = x0 + 20 + ((i * 61) % (VIEW_W + 10));
+    const y = y0 + 16 + (i % 3) * 22 + Math.sin(animT * 2 + i) * 2;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 2.2, 4.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function themeSafe(state, top) {
+  return state.def.theme === 'burrow' ? state.camY - 8 : top;
+}
+
 function drawRopes(state, treeLine) {
   ctx.strokeStyle = '#5c3d28';
   ctx.lineWidth = 1.5;
@@ -1328,13 +1443,23 @@ function drawWorld(state) {
   const theme = state.theme;
   const camX = state.camX;
   const camY = state.camY;
+  const cave = theme.burrow || state.player.y > ((state.def.ground || 13) + 0.4) * TILE;
   const sky = ctx.createLinearGradient(0, 0, 0, VIEW_H);
-  sky.addColorStop(0, theme.sky[0]);
-  sky.addColorStop(0.55, theme.sky[1]);
-  sky.addColorStop(1, theme.night ? '#0e1c2e' : '#d7f3c8');
+  sky.addColorStop(0, cave ? '#2a2118' : theme.sky[0]);
+  sky.addColorStop(0.55, cave ? '#5a4030' : theme.sky[1]);
+  sky.addColorStop(1, cave ? '#1a120c' : (theme.night ? '#0e1c2e' : '#d7f3c8'));
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-  if (theme.night) {
+  if (cave) {
+    ctx.fillStyle = 'rgba(126,206,106,0.16)';
+    for (let i = 0; i < 8; i++) {
+      const sx = (i * 41 + Math.sin(animT * 0.8 + i) * 6) % VIEW_W;
+      const sy = 24 + ((i * 29) % Math.floor(VIEW_H * 0.7));
+      ctx.beginPath();
+      ctx.ellipse(sx, sy, 2.2, 5 + (i % 3), 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (theme.night) {
     const my = state.bannerT > 0 ? 86 : 32;
     const glow = ctx.createRadialGradient(VIEW_W - 28, my, 2, VIEW_W - 28, my, 28);
     glow.addColorStop(0, 'rgba(246,231,193,0.55)');
@@ -1382,27 +1507,31 @@ function drawWorld(state) {
   }
   ctx.save();
   ctx.translate(-Math.round(camX), -Math.round(camY));
+  if (cave) drawRoots(state);
   const treeLine = treeLineY(state);
-  ctx.globalAlpha = 0.55;
-  drawHillBand(state, treeLine - 48, 26, 110, theme.hill2, 0.55);
-  ctx.globalAlpha = 0.72;
-  drawHillBand(state, treeLine - 10, 16, 72, theme.hill, 0.22);
-  ctx.globalAlpha = 1;
-  const treeName = theme.tree || 'pine';
-  const reed = treeName === 'reed';
-  const treeStep = reed ? 50 : 84;
-  const treeBase = reed ? 150 : 168;
-  for (let i = -1; i < Math.ceil(state.w * TILE / treeStep) + 1; i++) {
-    const foot = treeLine + (reed ? 86 : 34);
-    const x = i * treeStep;
-    if (x < camX - 160 || x > camX + VIEW_W + 160) continue;
-    ctx.save();
-    ctx.translate(x, foot);
-    ctx.rotate(Math.sin(animT * 1.25 + i * 0.7) * (reed ? 0.08 : 0.055));
-    drawPine(0, 0, treeBase + (i % 4) * (reed ? 10 : 20), theme.hill, theme.hill2, treeName);
-    ctx.restore();
+  if (!cave) {
+    ctx.globalAlpha = 0.55;
+    drawHillBand(state, treeLine - 48, 26, 110, theme.hill2, 0.55);
+    ctx.globalAlpha = 0.72;
+    drawHillBand(state, treeLine - 10, 16, 72, theme.hill, 0.22);
+    ctx.globalAlpha = 1;
+    const treeName = theme.tree || 'pine';
+    const reed = treeName === 'reed';
+    const treeStep = reed ? 50 : 84;
+    const treeBase = reed ? 150 : 168;
+    for (let i = -1; i < Math.ceil(state.w * TILE / treeStep) + 1; i++) {
+      const foot = treeLine + (reed ? 86 : 34);
+      const x = i * treeStep;
+      if (x < camX - 160 || x > camX + VIEW_W + 160) continue;
+      ctx.save();
+      ctx.translate(x, foot);
+      ctx.rotate(Math.sin(animT * 1.25 + i * 0.7) * (reed ? 0.08 : 0.055));
+      drawPine(0, 0, treeBase + (i % 4) * (reed ? 10 : 20), theme.hill, theme.hill2, treeName);
+      ctx.restore();
+    }
   }
   const waterY = (state.h - 2) * TILE;
+  if (!cave) {
   const water = ctx.createLinearGradient(0, waterY, 0, waterY + TILE * 2);
   water.addColorStop(0, theme.water);
   water.addColorStop(1, theme.night ? '#0c2433' : '#1d6f90');
@@ -1430,8 +1559,9 @@ function drawWorld(state) {
     ctx.ellipse(fx, fy, 6, 1.8, 0, 0, Math.PI * 2);
     ctx.fill();
   }
+  }
   drawMotes(state);
-  if (state.def.theme === 'rope') drawRopes(state, treeLine);
+  if (state.def.theme === 'rope' && !cave) drawRopes(state, treeLine);
   if (state.def.id === '3-2' || state.def.ending) drawLodge(state.w * TILE - 150, 5 * TILE);
   const x0 = Math.max(0, Math.floor(camX / TILE) - 1);
   const x1 = Math.min(state.w - 1, Math.floor((camX + VIEW_W) / TILE) + 1);
@@ -1457,29 +1587,30 @@ function drawWorld(state) {
     const step = Math.sin(p.run);
     let bob = 0;
     let sway = 0;
-    let lean = (p.pose || 0) * 0.14;
+    let lean = (p.pose || 0) * 0.035;
     let squash = p.squash || 0;
     if (moving) {
-      bob = -Math.abs(step) * 8.2;
-      sway = step * 4.6;
-      lean += step * 0.24;
-      if (!p.squash) squash = Math.cos(p.run) > 0.55 ? 0.18 : (Math.cos(p.run) < -0.55 ? -0.1 : 0);
+      const plant = step >= 0;
+      bob = plant ? step * 0.4 : step * 3.6;
+      sway = step * 0.7;
+      lean += p.face * (plant ? 0.012 : 0.028);
+      if (!p.squash) squash = plant ? 0.05 : -0.045;
     } else if (p.grounded) {
-      bob = Math.sin(animT * 2.4) * 1.6;
-      sway = Math.sin(animT * 1.5) * 1.1;
-      if (!p.squash) squash = Math.sin(animT * 2.4) * 0.06;
+      bob = Math.sin(animT * 1.7) * 0.7;
+      sway = Math.sin(animT * 1.1) * 0.35;
+      if (!p.squash) squash = Math.sin(animT * 1.7) * 0.02;
     } else if (p.vy < -200) {
-      bob = -5.4;
-      sway = (p.pose || 0) * 2.2;
-      squash = -0.22;
+      bob = -2.4;
+      sway = (p.pose || 0) * 0.8;
+      squash = -0.07;
     } else if (p.vy < 40) {
-      bob = -1.6;
-      sway = (p.pose || 0) * 1.2;
-      squash = 0.08;
+      bob = -0.4;
+      sway = (p.pose || 0) * 0.4;
+      squash = 0.02;
     } else {
-      bob = 2.8;
-      sway = (p.pose || 0) * 1.6;
-      squash = 0.12;
+      bob = 1.1;
+      sway = (p.pose || 0) * 0.5;
+      squash = 0.045;
     }
     drawBeaver(p.x, p.y, p.w, p.h, p.face, {
       form: p.form, phase: p.run, squash: squash, bob: bob, lean: lean, sway: sway, color: '#8b5a3c'
@@ -1596,6 +1727,11 @@ function drawTile(state, x, y) {
   const above = tileAt(state, x, y - 1);
   if (c === '#') {
     const top = !SOLID.has(above) && above !== '=';
+    const deep = state.def.theme === 'burrow' || y > (state.def.ground || 13);
+    if (deep) {
+      drawSoil(px, py, x, y, top);
+      return;
+    }
     if (artReady(ART.grass)) {
       const g = ART.grass;
       if (top) ctx.drawImage(g, px, py, TILE + 0.8, TILE + 0.8);
@@ -1709,6 +1845,10 @@ function drawTile(state, x, y) {
     ctx.arc(px + 6, py + 9, 4, 0, Math.PI * 2);
     ctx.arc(px + TILE - 6, py + 9, 4, 0, Math.PI * 2);
     ctx.fill();
+    return;
+  }
+  if (c === 'X') {
+    drawCrate(px, py, bump);
     return;
   }
   if (c === 'C') {
@@ -1901,8 +2041,89 @@ function drawLog(log) {
   ctx.stroke();
 }
 
+function drawSoil(px, py, x, y, top) {
+  const dirt = ctx.createLinearGradient(px, py, px, py + TILE);
+  dirt.addColorStop(0, top ? '#6a4a32' : '#4a301f');
+  dirt.addColorStop(1, '#2a1a12');
+  ctx.fillStyle = dirt;
+  ctx.fillRect(px, py, TILE + 0.5, TILE + 0.5);
+  ctx.fillStyle = 'rgba(90,60,40,0.45)';
+  ctx.beginPath();
+  ctx.arc(px + 8 + (x % 4) * 5, py + 18, 3, 0, Math.PI * 2);
+  ctx.arc(px + 22, py + 10, 2, 0, Math.PI * 2);
+  ctx.fill();
+  if ((x + y) % 3 === 0) {
+    ctx.strokeStyle = '#d7c4a4';
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(px + 6, py);
+    ctx.quadraticCurveTo(px + 10, py + 10, px + 4, py + TILE);
+    ctx.stroke();
+  }
+  if (top) {
+    ctx.fillStyle = '#3e6a3a';
+    ctx.fillRect(px, py, TILE + 0.5, 5);
+    ctx.strokeStyle = '#c4a574';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(px + 4, py + 4);
+    ctx.quadraticCurveTo(px + 12, py - 8 - (x % 3) * 2, px + 18, py + 3);
+    ctx.moveTo(px + 18, py + 4);
+    ctx.quadraticCurveTo(px + 24, py - 6, px + 30, py + 4);
+    ctx.stroke();
+    if ((x + y) % 4 === 0) {
+      ctx.fillStyle = 'rgba(126,206,106,0.85)';
+      ctx.beginPath();
+      ctx.ellipse(px + 16, py + 3, 3, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawCrate(px, py) {
+  ctx.fillStyle = '#c4896a';
+  roundRect(px + 2, py + 4, TILE - 4, TILE - 6, 3);
+  ctx.fill();
+  ctx.fillStyle = '#8d5a38';
+  ctx.fillRect(px + 4, py + 8, TILE - 8, 4);
+  ctx.fillRect(px + 4, py + 18, TILE - 8, 4);
+  ctx.strokeStyle = '#3a2418';
+  ctx.lineWidth = 1.4;
+  roundRect(px + 2, py + 4, TILE - 4, TILE - 6, 3);
+  ctx.stroke();
+  ctx.strokeStyle = '#e7d3b0';
+  ctx.lineWidth = 1.1;
+  ctx.beginPath();
+  ctx.moveTo(px + 6, py + 8);
+  ctx.lineTo(px + TILE - 6, py + 22);
+  ctx.moveTo(px + TILE - 6, py + 8);
+  ctx.lineTo(px + 6, py + 22);
+  ctx.stroke();
+}
+
 function drawItem(it) {
   const bob = Math.sin(animT * 3 + it.x * 0.05) * 2.2;
+  if (it.kind === 'stone') {
+    ctx.fillStyle = '#8d908c';
+    ctx.beginPath();
+    ctx.ellipse(it.x + 9, it.y + 8 + bob, 7, 5, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#d7d3cc';
+    ctx.beginPath();
+    ctx.ellipse(it.x + 7, it.y + 6 + bob, 2.4, 1.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
+  if (it.kind === 'life') {
+    ctx.fillStyle = '#f2c14e';
+    ctx.beginPath();
+    ctx.arc(it.x + 9, it.y + 8 + bob, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#1a1028';
+    ctx.fillRect(it.x + 8, it.y + 5 + bob, 2, 7);
+    ctx.fillRect(it.x + 6, it.y + 7 + bob, 6, 2);
+    return;
+  }
   if (it.kind === 'cap') {
     ctx.fillStyle = '#e2b13a';
     ctx.beginPath();
@@ -2014,6 +2235,17 @@ function drawShot(s) {
     drawBubble(cx, cy, s.from === 'goose' ? 20 : 18, s.vx);
     return;
   }
+  if (s.from === 'stone') {
+    ctx.fillStyle = '#6e726e';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, r + 1, r - 1, s.x * 0.02, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#d7d3cc';
+    ctx.beginPath();
+    ctx.ellipse(cx - 2, cy - 2, 2, 1.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
   ctx.fillStyle = '#b6e37a';
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -2067,6 +2299,59 @@ function drawPole(state) {
   ctx.fill();
 }
 
+function drawGrub(e) {
+  const wiggle = Math.sin(animT * 8 + e.x * 0.05) * 1.4;
+  ctx.save();
+  ctx.translate(e.x + e.w / 2, e.y + e.h - 2 + wiggle);
+  ctx.fillStyle = '#f3e6cf';
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.ellipse(-10 + i * 7, 0, 5.2, 4.2 - i * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#6b442c';
+  ctx.beginPath();
+  ctx.arc(12, -1, 4.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#1a1028';
+  ctx.beginPath();
+  ctx.arc(13.2, -2, 0.9, 0, Math.PI * 2);
+  ctx.arc(11.2, -2, 0.9, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#c4a574';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.moveTo(-6 + i * 6, 3);
+    ctx.lineTo(-8 + i * 6, 6);
+    ctx.moveTo(-2 + i * 6, 3);
+    ctx.lineTo(0 + i * 6, 6);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawDrip(e) {
+  const hang = e.state === 'hang';
+  ctx.fillStyle = hang ? '#7dce6a' : '#e7d7b8';
+  ctx.beginPath();
+  ctx.ellipse(e.x + e.w / 2, e.y + e.h * 0.55, e.w * 0.42, e.h * 0.46, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#1a1028';
+  ctx.beginPath();
+  ctx.arc(e.x + e.w * 0.38, e.y + e.h * 0.48, 1.1, 0, Math.PI * 2);
+  ctx.arc(e.x + e.w * 0.62, e.y + e.h * 0.48, 1.1, 0, Math.PI * 2);
+  ctx.fill();
+  if (hang) {
+    ctx.strokeStyle = '#9fd7c8';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(e.x + e.w / 2, e.y);
+    ctx.lineTo(e.x + e.w / 2, e.y - 10);
+    ctx.stroke();
+  }
+}
+
 function drawEnemy(state, e) {
   if (e.kind === 'duck') {
     drawDuck(e);
@@ -2089,6 +2374,14 @@ function drawEnemy(state, e) {
   }
   if (e.kind === 'tumbler') {
     drawTumbler(e);
+    return;
+  }
+  if (e.kind === 'grub') {
+    drawGrub(e);
+    return;
+  }
+  if (e.kind === 'drip') {
+    drawDrip(e);
     return;
   }
   const painted = { leaper: ['leaper', 52, 48], nipper: ['nipper', 54, 46], icer: ['icer', 54, 48] }[e.kind];
@@ -2421,13 +2714,18 @@ function render() {
     return;
   }
   drawWorld(live);
-  const form = live.player.form === 'small' ? '' : (live.player.form === 'cap' ? 'CAP' : 'SAP');
+  const bits = [];
+  if (live.player.form === 'cap') bits.push('CAP');
+  else if (live.player.form === 'sap') bits.push('SAP');
+  if ((live.player.stones || 0) > 0) bits.push('STONE ' + live.player.stones);
   document.getElementById('hud-lives').textContent = 'Lives ' + Math.max(0, live.lives);
   document.getElementById('hud-level').textContent = live.def.id + ' ' + live.def.name;
-  document.getElementById('hud-form').textContent = form;
+  document.getElementById('hud-form').textContent = bits.join(' ');
   document.getElementById('hud-coins').textContent = '$BOBER ' + live.acorns;
   document.getElementById('hud-time').textContent = String(Math.max(0, Math.ceil(live.clock)));
-  document.getElementById('btn-spit').hidden = live.player.form !== 'sap';
+  const spit = document.getElementById('btn-spit');
+  spit.hidden = live.player.form !== 'sap' && !(live.player.stones > 0);
+  spit.textContent = live.player.stones > 0 ? 'STONE' : 'SPIT';
   document.getElementById('stage').style.background = live.theme.sky[0];
 }
 
@@ -2441,6 +2739,7 @@ const STORY = [
   { img: 'assets/museum/lockjaw.jpg', kicker: 'Bell Rope', title: 'Lockjaw', copy: 'Lockjaw sits on the rope and will not move. Three stomps, or a mouthful of sap. Then the rope is free.' },
   { img: 'assets/museum/bell-lit.jpg', kicker: 'The rope', title: 'The bell, not the river', copy: 'Bober rings the bell. It lights. The river does not rise. The light shows the water is held upstream.' },
   { img: 'assets/poster.jpg', kicker: 'Cedar Shade', title: 'A thin creek', copy: 'He follows the light along a cedar thread. Red leapers hop the shade. The water is still only a shine between roots.' },
+  { img: 'assets/museum/burrow.jpg', kicker: 'Under the bank', title: 'The root road', copy: 'A soft spot in the mud drops into a burrow. Root grubs crawl there. Rope crates hide a river stone, a cap, or another life. The bank above still goes on.' },
   { img: 'assets/museum/duck.jpg', kicker: 'Reed Water', title: 'Long necks', copy: 'Reeds thicken. Ducks stand, and geese with long necks spit quicker bubbles. The creek is deeper here, and still not a river.' },
   { img: 'assets/museum/mill.jpg', kicker: 'Clay Kiln', title: 'A second mill', copy: 'Another mill is still chewing the bank into bricks. Nippers run low and fast. He breaks what he must and keeps the thread.' },
   { img: 'assets/museum/spill.jpg', kicker: 'Rope Run', title: 'Logs over the cut', copy: 'The creekbed is an empty cut. Scaffolds and tumblers cross it. He rides nothing he does not have to.' },
@@ -2453,6 +2752,9 @@ const MUSEUM = [
   { img: 'assets/museum/bober.jpg', tag: 'Hopper', name: 'Bober', copy: 'Brown fur, cream belly, a flat tail, two teeth. He is hopping home to light the lodge bell.' },
   { img: 'assets/museum/cap.jpg', tag: 'Gear', name: 'Lodge Cap', copy: 'A yellow cap and a green sprig. One hit glances off. Bricks break.' },
   { img: 'assets/museum/sap.jpg', tag: 'Gear', name: 'Sap Spit', copy: 'Green sap gathers in the cheek. Spit throws a chip. J, K, or Shift.' },
+  { img: 'assets/museum/box.jpg', tag: 'Gear', name: 'Rope Crate', copy: 'Jump on the crate. A river stone, a cap, sap, or another life spills out.' },
+  { img: 'assets/museum/burrow.jpg', tag: 'Under', name: 'Root Road', copy: 'Drop through the soft bank. The burrow runs ahead and comes up through a log.' },
+  { img: 'assets/museum/grub.jpg', tag: 'Under', name: 'Root Grub', copy: 'Low and pale. He paces the clay. Land on him. A drip falls when you walk under it.' },
   { img: 'assets/museum/kit.jpg', tag: 'Reds', name: 'Red Kit', copy: 'Small, red, and in the way, with the acorns that wake the bell. Land on him.' },
   { img: 'assets/museum/loghead.jpg', tag: 'Reds', name: 'Loghead', copy: 'A barked log with a face. Stomp him and he rolls until a wall stops him.' },
   { img: 'assets/museum/duck.jpg', tag: 'Reds', name: 'Bank Duck', copy: 'Stands in the mud and spits bubbles to the left. Hop over them.' },

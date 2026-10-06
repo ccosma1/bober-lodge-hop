@@ -1,6 +1,6 @@
-# Bober Lodge Hop
+# Bober Burrow Hop
 
-Phone-first hop along the river bank. Bober is going home to light the lodge bell. The reds took the acorns that wake it. The bell can light, and the river still stays thin until he reaches the source.
+Phone-first hop along the river bank. Bober is going home to light the lodge bell. The reds took the acorns that wake it. The bell can light, and the river still stays thin until he reaches the source. Soft mud hides a burrow. A rope crate can hide a stone.
 
 Fan game by a holder. Unofficial. Not the project team. No wallet.
 
@@ -26,7 +26,7 @@ $BOBER is the acorn count. It saves in this browser under `bober-lodge-hop-v1`.
 
 The lodge bell used to answer the river. The reds took the acorns that wake it. Bober hops the bank, the mill, and the spillway, and rings the bell. It lights. The river does not rise. The light shows the water is held upstream.
 
-He follows the thin creek through cedar shade, reed water, a second mill, the empty cut, and a frost bank. New reds meet him on the way: leapers, geese, nippers, tumblers, icers, and masons. At the red dam the river is stacked into logs. Past the dam is the spring. Clear the source rope and the water comes home, and the lit bell finally has a river to answer.
+He follows the thin creek through cedar shade, reed water, a second mill, the empty cut, and a frost bank. New reds meet him on the way: leapers, geese, nippers, tumblers, icers, and masons. Root grubs pace the clay under the bank. A crate on the road can spill a river stone, a cap, sap, or another life. At the red dam the river is stacked into logs. Past the dam is the spring. Clear the source rope and the water comes home, and the lit bell finally has a river to answer.
 
 STORY on the title walks that tale. MUSEUM opens the plates: Bober, the lodge cap, sap, the reds, and the banks. No two banks share a map.
 
@@ -36,11 +36,11 @@ STORY on the title walks that tale. MUSEUM opens the plates: Bober, the lodge ca
 2-2 High Scaffolds. A lodge cap was left up there.
 3-1 Spillway. The water is in a hurry.
 3-2 Bell Rope. The bell lights. The river does not rise.
-4 Cedar Shade. Leapers hop the thin creek.
+4 Cedar Shade. Leapers hop the thin creek. Root Road runs under it.
 5 Reed Water. Geese hold the thread.
-6 Clay Kiln. Nippers run the second mill.
-7 Rope Run. Tumblers cross the empty cut.
-8 Frost Bank. Icers slide the ice.
+6 Clay Kiln. Nippers run the second mill. Kiln Dark is the basement.
+7 Rope Run. Tumblers cross the empty cut. Cut Under is the back road.
+8 Frost Bank. Icers slide the ice. Deep Frost is the root under the shine.
 9 Red Dam. Masons throw bricks. A keeper sits on the logs.
 10 The Source. The last rope, and the water comes home.
 
@@ -50,6 +50,6 @@ STORY on the title walks that tale. MUSEUM opens the plates: Bober, the lodge ca
 python scripts/playtest.py
 ```
 
-That needs a local server on port 8793 and Chrome. It runs the bank bot through all fifty-six levels, then clicks the phone UI.
+That needs a local server on port 8793 and Chrome. It runs the bank bot through all sixty levels, then clicks the phone UI.
 
-Build lh9. Original art and sounds.
+Build lh10. Original art and sounds.
