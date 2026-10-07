@@ -5,7 +5,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-URL = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8793/?v=lh14"
+URL = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8793/?v=lh15"
 OUT = Path(__file__).resolve().parents[1] / "docs" / "lh1"
 
 
@@ -18,7 +18,7 @@ def main():
         page.set_default_timeout(300000)
         page.on("pageerror", lambda err: errors.append(str(err)))
         page.goto(URL, wait_until="networkidle")
-        page.wait_for_function("() => window.__hop && window.__hop.build === 'lh14'")
+        page.wait_for_function("() => window.__hop && window.__hop.build === 'lh15'")
         result = page.evaluate("() => window.__hop.selfTest()")
         (OUT / "selftest.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
         print(json.dumps(result["report"]))
@@ -88,25 +88,31 @@ def main():
         page.screenshot(path=str(OUT / "reel-end-390.png"))
         page.click("#btn-reel-skip")
         page.wait_for_function("() => document.getElementById('reel').hidden && window.__hop.snapshot().card === 'end'")
+        page.wait_for_function(
+            "() => { const img = document.getElementById('end-art'); return img && img.complete && img.naturalWidth > 0 && img.currentSrc.indexOf('poster.jpg') >= 0 && document.querySelectorAll('#card-end .cheer i').length >= 8; }",
+            timeout=8000,
+        )
+        page.screenshot(path=str(OUT / "end-390.png"))
+        page.set_viewport_size({"width": 1440, "height": 900})
+        page.wait_for_timeout(200)
+        page.screenshot(path=str(OUT / "end-1440.png"))
+        page.set_viewport_size({"width": 390, "height": 844})
         page.click("#btn-end-map")
         page.wait_for_selector("#screen-map:not([hidden])")
         page.click("#btn-map-title")
         page.click("#btn-notes")
         notes = page.inner_text("#screen-notes")
-        if "lh14" not in notes or "Unofficial" not in notes or "No wallet" not in notes:
+        if "lh15" not in notes or "Unofficial" not in notes or "No wallet" not in notes:
             errors.append("notes missing fan line or build")
         page.click("#btn-notes-back")
         page.click("#btn-story")
-        page.wait_for_selector("#screen-story:not([hidden])")
-        story = page.inner_text("#story-title")
-        if "quiet" not in story.lower():
-            errors.append("story title")
+        page.wait_for_function(
+            "() => { const v = document.getElementById('reel-video'); return !document.getElementById('reel').hidden && v.currentSrc.indexOf('open.mp4') >= 0 && v.videoWidth === 720 && v.currentTime > 0; }",
+            timeout=8000,
+        )
         page.screenshot(path=str(OUT / "story-390.png"))
-        page.click("#btn-story-next")
-        if "carried" not in page.inner_text("#story-title").lower() and "what" not in page.inner_text("#story-title").lower():
-            errors.append("story next")
-        page.click("#btn-story-back")
-        page.wait_for_selector("#screen-title:not([hidden])")
+        page.click("#btn-reel-skip")
+        page.wait_for_function("() => document.getElementById('reel').hidden && document.body.dataset.mode === 'title'")
         page.click("#btn-museum")
         page.wait_for_selector("#museum-grid button")
         page.screenshot(path=str(OUT / "museum-390.png"))

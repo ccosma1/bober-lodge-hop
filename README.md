@@ -1,6 +1,6 @@
 # Bober Burrow Hop
 
-Phone-first hop along the river bank. Bober is going home to light the lodge bell. The reds took the acorns that wake it. The bell can light, and the river still stays thin until he reaches the source. Soft mud hides a burrow. A rope crate can hide a stone.
+Phone-first hop along the river bank. Soft mud hides a burrow. A rope crate can hide a stone. Acorns on the bank are $BOBER.
 
 Fan game by a holder. Unofficial. Not the project team. No wallet.
 
@@ -24,11 +24,7 @@ $BOBER is the acorn count. It saves in this browser under `bober-lodge-hop-v1`.
 
 ## Story
 
-The lodge bell used to answer the river. The reds took the acorns that wake it. Bober hops the bank, the mill, and the spillway, and rings the bell. It lights. The river does not rise. The light shows the water is held upstream.
-
-He follows the thin creek through cedar shade, reed water, a second mill, the empty cut, and a frost bank. New reds meet him on the way: leapers, geese, nippers, tumblers, icers, and masons. Root grubs pace the clay under the bank. A crate on the road can spill a river stone, a cap, sap, or another life. At the red dam the river is stacked into logs. Past the dam is the spring. Clear the source rope and the water comes home, and the lit bell finally has a river to answer.
-
-STORY on the title walks that tale. MUSEUM opens the plates: Bober, the lodge cap, sap, the reds, and the banks. No two banks share a map.
+STORY on the title and on the map plays the opening reel. Clearing the last bank plays a celebration reel, then a card. MUSEUM opens the plates. No two banks share a map.
 
 1-1 Pine Bank. The mud still knows his feet.
 1-2 Stump Stairs. Old stumps mark the old river.
@@ -52,4 +48,4 @@ python scripts/playtest.py
 
 That needs a local server on port 8793 and Chrome. It runs the bank bot through all sixty levels, then clicks the phone UI.
 
-Build lh14. Original art and sounds.
+Build lh15. Original art and sounds.

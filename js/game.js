@@ -1,12 +1,11 @@
-/* Bober Burrow Hop lh14 — original bank hop. No borrowed characters or tunes. */
-const BUILD = 'lh14';
+/* Bober Burrow Hop lh15 — original bank hop. No borrowed characters or tunes. */
+const BUILD = 'lh15';
 const TILE = 32;
 let VIEW_W = 328;
 let VIEW_H = 360;
 let pixelScale = 2;
 let animT = 0;
 let panelReturn = 'title';
-let storyIndex = 0;
 const STEP = 1 / 60;
 const GRAV = 2100;
 const JUMP_V = -680;
@@ -2856,26 +2855,6 @@ function render() {
   document.getElementById('stage').style.background = live.theme.sky[0];
 }
 
-const STORY = [
-  { img: 'assets/museum/bell-dark.jpg', kicker: 'The job', title: 'The quiet bell', copy: 'The lodge bell rings when the river reaches it. The river stopped. The acorns that call the water were taken off the stoop, and the bell went dark.' },
-  { img: 'assets/museum/kit.jpg', kicker: 'Who did it', title: 'What they carried', copy: 'Red kits carried those acorns upstream. Logheads rolled after them. A duck held the mud. They stacked logs, clay, and acorns into a dam, and the river sits behind it.' },
-  { img: 'assets/museum/bober.jpg', kicker: 'World 1', title: 'Leave the lodge', copy: 'Bober starts small on Pine Bank. The mud is the road. High logs offer a second path. A ford of logs runs on the water where the bank breaks.' },
-  { img: 'assets/museum/cap.jpg', kicker: 'World 1', title: 'The lodge cap', copy: 'A yellow cap with a green sprig sits on the stumps. Wear it and one hit glances off. Bricks break under his feet. Stumps in the mud are jumped.' },
-  { img: 'assets/museum/mill.jpg', kicker: 'World 2', title: 'The chewed path', copy: 'The mill turned the path into bricks. Sap gathers in his cheek. Spit, or J, throws a chip. The far side of the mill is still the way upstream.' },
-  { img: 'assets/museum/spill.jpg', kicker: 'World 2', title: 'Ride the spillway', copy: 'What water is left is in a hurry. Moving logs cross it. He rides a log, then gets off on solid mud. The scaffolds are the air road.' },
-  { img: 'assets/museum/lockjaw.jpg', kicker: 'World 3', title: 'Free the rope', copy: 'Lockjaw sits on the bell rope and will not move. Three stomps, or a mouthful of sap, and he lets go. The rope is the bell.' },
-  { img: 'assets/museum/bell-lit.jpg', kicker: 'World 3', title: 'The bell lights', copy: 'The bell lights. The river does not rise. The light shows the water is still held at the dam. The rest of the hop follows that thin creek upstream.' },
-  { img: 'assets/museum/leaper.jpg', kicker: 'World 4', title: 'The cedar thread', copy: 'Leapers hop the cedar shade. The creek is only a shine. High logs, a water ford, and a soft spot into the roots are all ways through.' },
-  { img: 'assets/museum/burrow.jpg', kicker: 'Under', title: 'The root road', copy: 'A soft spot drops into a burrow. Grubs pace the clay. A crate can hide a stone, a cap, sap, or another life. The bank above still goes on.' },
-  { img: 'assets/museum/goose.jpg', kicker: 'World 5', title: 'Long necks', copy: 'The creek widens in the reeds. Ducks stand and spit. Geese spit faster. Hop the bubble. It is deeper here, and it is still not the river.' },
-  { img: 'assets/museum/nipper.jpg', kicker: 'World 6', title: 'The second mill', copy: 'The kiln is still chewing the bank into bricks. Nippers run low and fast. Climb the shelf or take the root road under the clay.' },
-  { img: 'assets/museum/tumbler.jpg', kicker: 'World 7', title: 'The empty cut', copy: 'The creekbed falls away. Tumblers roll the ropes. A moving log is the bridge. Wait for it, ride it, and step off onto mud.' },
-  { img: 'assets/museum/icer.jpg', kicker: 'World 8', title: 'The creek is ice', copy: 'Snow sits on the pines. Icers slide the frozen thread. Under the ice the water is still trying to reach the bell.' },
-  { img: 'assets/museum/mason.jpg', kicker: 'World 9', title: 'The dam', copy: 'This is the pile. Logs, kits, and acorns stacked until the river stopped. Masons throw bricks from the top. Hop the brick.' },
-  { img: 'assets/museum/dam.jpg', kicker: 'World 9', title: 'Crack the keep', copy: 'A keeper sits on the logs and will not let the water by. Beat him and the dam cracks. The spring is the last bank.' },
-  { img: 'assets/museum/source.jpg', kicker: 'World 10', title: 'Open the source', copy: 'One keeper holds the source rope. When he lets go, the water runs the creek, the spillway, and the mill. The lit bell finally has a river to answer.' }
-];
-
 const MUSEUM = [
   { img: 'assets/museum/bober.jpg', tag: 'Hopper', name: 'Bober', copy: 'Brown fur, cream belly, a flat tail, two teeth. He is hopping home to light the lodge bell.' },
   { img: 'assets/museum/cap.jpg', tag: 'Gear', name: 'Lodge Cap', copy: 'A yellow cap and a green sprig. One hit glances off. Bricks break.' },
@@ -2905,15 +2884,6 @@ function artSrc(path) {
   return path + '?v=' + BUILD;
 }
 
-function renderStory() {
-  const beat = STORY[storyIndex];
-  document.getElementById('story-art').src = artSrc(beat.img);
-  document.getElementById('story-kicker').textContent = beat.kicker;
-  document.getElementById('story-title').textContent = beat.title;
-  document.getElementById('story-copy').textContent = beat.copy;
-  document.getElementById('btn-story-next').textContent = storyIndex < STORY.length - 1 ? 'NEXT' : 'DONE';
-}
-
 function renderMuseum() {
   const grid = document.getElementById('museum-grid');
   if (grid.childElementCount) return;
@@ -2938,10 +2908,6 @@ function openPlate(i) {
 function openPanel(name) {
   const mode = document.body.dataset.mode;
   panelReturn = mode === 'play' ? 'pause' : mode;
-  if (name === 'story') {
-    storyIndex = 0;
-    renderStory();
-  }
   if (name === 'museum') renderMuseum();
   showScreen(name);
 }
@@ -2957,7 +2923,7 @@ function closePanel() {
 }
 
 function showScreen(name) {
-  const names = ['title', 'notes', 'map', 'story', 'museum', 'plate'];
+  const names = ['title', 'notes', 'map', 'museum', 'plate'];
   for (let i = 0; i < names.length; i++) {
     document.getElementById('screen-' + names[i]).hidden = names[i] !== name;
   }
@@ -3095,7 +3061,7 @@ function openClear() {
 
 function openEnd() {
   document.getElementById('end-title').textContent = 'The river is home';
-  document.getElementById('end-copy').textContent = 'The keeper lets go of the source rope. Water runs the creek, the spillway, and the mill, and the lit bell finally has a river to answer. ' + live.acorns + ' $BOBER banked.';
+  document.getElementById('end-copy').textContent = 'You opened the source. The bell has its river. ' + live.acorns + ' $BOBER banked.';
   setCard('end');
 }
 
@@ -3200,17 +3166,10 @@ function bindUI() {
   });
   document.getElementById('btn-notes').addEventListener('click', () => showScreen('notes'));
   document.getElementById('btn-notes-back').addEventListener('click', () => showScreen('title'));
-  document.getElementById('btn-story').addEventListener('click', () => openPanel('story'));
+  document.getElementById('btn-story').addEventListener('click', () => showReel('assets/cinema/open.mp4'));
   document.getElementById('btn-museum').addEventListener('click', () => openPanel('museum'));
-  document.getElementById('btn-map-story').addEventListener('click', () => openPanel('story'));
+  document.getElementById('btn-map-story').addEventListener('click', () => showReel('assets/cinema/open.mp4'));
   document.getElementById('btn-map-museum').addEventListener('click', () => openPanel('museum'));
-  document.getElementById('btn-story-next').addEventListener('click', () => {
-    if (storyIndex < STORY.length - 1) {
-      storyIndex += 1;
-      renderStory();
-    } else closePanel();
-  });
-  document.getElementById('btn-story-back').addEventListener('click', closePanel);
   document.getElementById('btn-museum-back').addEventListener('click', closePanel);
   document.getElementById('btn-plate-back').addEventListener('click', () => showScreen('museum'));
   document.getElementById('btn-map-title').addEventListener('click', () => showScreen('title'));
@@ -3298,7 +3257,7 @@ function bindUI() {
         showScreen('museum');
         return;
       }
-      if (mode === 'story' || mode === 'museum') {
+      if (mode === 'museum') {
         ev.preventDefault();
         closePanel();
         return;
