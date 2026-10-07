@@ -1,4 +1,4 @@
-/* Bober Burrow Hop lh12 — every bank is its own path, from the lodge bell to the source. */
+/* Bober Burrow Hop lh13 — every bank is its own path, from the lodge bell to the source. */
 const LEVELS = [];
 const TILE_CHARS = new Set(['.', '#', '=', 'B', '?', '!', 'S', 'u', 'C', 'K', 'R', 'D', 'J', 'P', 'F', 'M', '^', 'H', 'A', 'L', 'G', 'N', 'T', 'I', 'Q', 'X', 'U', 'V']);
 

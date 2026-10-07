@@ -1,7 +1,7 @@
-/* Bober Burrow Hop lh12 — original bank hop. No borrowed characters or tunes. */
-const BUILD = 'lh12';
+/* Bober Burrow Hop lh13 — original bank hop. No borrowed characters or tunes. */
+const BUILD = 'lh13';
 const TILE = 32;
-let VIEW_W = 224;
+let VIEW_W = 328;
 let VIEW_H = 360;
 let pixelScale = 2;
 let animT = 0;
@@ -193,7 +193,7 @@ function layoutView() {
   const w = rect.width || 390;
   const h = rect.height || 520;
   const dpr = Math.min(3, Math.max(2, window.devicePixelRatio || 2));
-  const nextW = 224;
+  const nextW = 328;
   const nextH = Math.max(240, Math.round(nextW * (h / Math.max(1, w))));
   const bw = Math.max(2, Math.round(w * dpr));
   const bh = Math.max(2, Math.round(h * dpr));
@@ -214,6 +214,8 @@ let soundOn = true;
 let save = { v: 1, unlocked: 0, cleared: {}, bank: 0, sound: true };
 let live = null;
 let paused = false;
+let reelOpen = false;
+let reelDone = null;
 let latch = '';
 let lastT = 0;
 let acc = 0;
@@ -1190,7 +1192,7 @@ function updateCamera(state, snap) {
   const p = state.player;
   const worldW = state.w * TILE;
   const worldH = state.h * TILE;
-  let tx = p.x + p.w / 2 + p.face * 36 - VIEW_W * 0.36;
+  let tx = p.x + p.w / 2 + p.face * 32 - VIEW_W * 0.30;
   let ty = p.y + p.h * 0.3 - VIEW_H * 0.62;
   tx = clamp(tx, Math.min(0, worldW - VIEW_W), Math.max(0, worldW - VIEW_W));
   ty = clamp(ty, Math.min(0, worldH - VIEW_H), Math.max(0, worldH - VIEW_H));
@@ -1574,7 +1576,7 @@ function drawWorld(state) {
       ctx.fill();
     }
   } else if (theme.night) {
-    const my = state.bannerT > 0 ? 86 : 32;
+    const my = state.bannerT > 0 ? 118 : 32;
     const glow = ctx.createRadialGradient(VIEW_W - 28, my, 2, VIEW_W - 28, my, 28);
     glow.addColorStop(0, 'rgba(246,231,193,0.55)');
     glow.addColorStop(1, 'rgba(246,231,193,0)');
@@ -1599,7 +1601,7 @@ function drawWorld(state) {
     }
     ctx.globalAlpha = 1;
   } else {
-    const sy = state.bannerT > 0 ? 92 : 34;
+    const sy = state.bannerT > 0 ? 124 : 34;
     const glow = ctx.createRadialGradient(VIEW_W - 36, sy, 4, VIEW_W - 36, sy, 40);
     glow.addColorStop(0, 'rgba(255,226,138,0.85)');
     glow.addColorStop(1, 'rgba(255,226,138,0)');
@@ -1711,6 +1713,12 @@ function drawWorld(state) {
     ctx.fill();
     ctx.globalAlpha = 1;
   }
+  const worldBottom = state.h * TILE;
+  const viewBottom = camY + VIEW_H;
+  if (viewBottom > worldBottom) {
+    ctx.fillStyle = cave ? '#2a1a12' : (theme.snow ? '#d5e4ee' : '#3d2818');
+    ctx.fillRect(camX - 8, worldBottom, VIEW_W + 16, viewBottom - worldBottom + 8);
+  }
   ctx.restore();
   if (state.bannerT > 0 && state.mode === 'play') drawBanner(state);
 }
@@ -1731,20 +1739,20 @@ function wrapText(text, maxWidth) {
 }
 
 function drawBanner(state) {
-  const maxWidth = VIEW_W - 36;
-  ctx.font = '700 13px Trebuchet MS, Segoe UI, sans-serif';
+  const maxWidth = VIEW_W - 48;
+  ctx.font = '700 19px Trebuchet MS, Segoe UI, sans-serif';
   const lines = wrapText(state.def.line, maxWidth);
   const hintLines = state.def.hint ? wrapText(state.def.hint, maxWidth) : [];
-  const boxH = 16 + lines.length * 16 + hintLines.length * 14;
+  const boxH = 20 + lines.length * 24 + hintLines.length * 20;
   ctx.fillStyle = 'rgba(26,16,40,0.92)';
-  roundRect(10, 8, VIEW_W - 20, boxH, 8);
+  roundRect(12, 10, VIEW_W - 24, boxH, 10);
   ctx.fill();
   ctx.textAlign = 'center';
   ctx.fillStyle = '#f6e7c1';
-  for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], VIEW_W / 2, 26 + i * 16);
+  for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], VIEW_W / 2, 32 + i * 24);
   ctx.fillStyle = '#f2c14e';
-  ctx.font = '700 11px Trebuchet MS, Segoe UI, sans-serif';
-  for (let i = 0; i < hintLines.length; i++) ctx.fillText(hintLines[i], VIEW_W / 2, 26 + lines.length * 16 + i * 14);
+  ctx.font = '700 16px Trebuchet MS, Segoe UI, sans-serif';
+  for (let i = 0; i < hintLines.length; i++) ctx.fillText(hintLines[i], VIEW_W / 2, 32 + lines.length * 24 + i * 20);
   ctx.textAlign = 'left';
 }
 
@@ -2996,19 +3004,68 @@ function renderMap() {
     btn.disabled = !open;
     if (open && i === nextIndex && !cleared) btn.className = 'next';
     btn.innerHTML = '<span class="lid">' + lv.id + '</span><span class="lname">' + lv.name + '</span><span class="lmark">' + (cleared ? 'BELL' : open ? 'HOP' : 'LOCKED') + '</span>';
-    btn.addEventListener('click', () => startLevel(lv.id));
+    btn.addEventListener('click', () => startLevel(lv.id, { reel: lv.id === '1-1' }));
     list.appendChild(btn);
   });
 }
 
-function startLevel(id) {
+function closeReel() {
+  const video = document.getElementById('reel-video');
+  const reel = document.getElementById('reel');
+  if (video) {
+    video.onended = null;
+    video.onerror = null;
+    try { video.pause(); } catch (err) { /* already stopped */ }
+    video.removeAttribute('src');
+  }
+  if (reel) reel.hidden = true;
+  reelOpen = false;
+}
+
+function finishReel() {
+  if (!reelOpen && !reelDone) return;
+  const done = reelDone;
+  reelDone = null;
+  closeReel();
+  if (live && document.body.dataset.mode === 'play' && !document.body.dataset.card) paused = false;
+  if (done) done();
+}
+
+function showReel(src, done) {
+  const video = document.getElementById('reel-video');
+  const reel = document.getElementById('reel');
+  if (!video || !reel) {
+    if (done) done();
+    return;
+  }
+  closeReel();
+  reelDone = done || null;
+  reelOpen = true;
+  paused = true;
+  reel.hidden = false;
+  video.muted = true;
+  video.defaultMuted = true;
+  video.playsInline = true;
+  video.setAttribute('playsinline', '');
+  video.src = src + '?v=' + BUILD;
+  video.onended = finishReel;
+  video.onerror = finishReel;
+  const play = video.play();
+  if (play && play.catch) play.catch(finishReel);
+}
+
+function startLevel(id, opts) {
+  opts = opts || {};
   ensureAudio();
+  reelDone = null;
+  closeReel();
   const params = new URLSearchParams(location.search);
   live = createState(id, { bot: params.has('bot') });
   paused = false;
   latch = '';
   showScreen('play');
   setCard('');
+  if (opts.reel && id === '1-1' && !live.bot && !live.sim) showReel('assets/cinema/open.mp4');
 }
 
 function onClear(state) {
@@ -3045,8 +3102,10 @@ function watch() {
   if (live.mode === 'clear' && latch !== 'clear') {
     latch = 'clear';
     onClear(live);
-    if (live.def.ending) openEnd();
-    else openClear();
+    if (live.def.ending) {
+      if (live.bot || live.sim) openEnd();
+      else showReel('assets/cinema/end.mp4', openEnd);
+    } else openClear();
   } else if (live.mode === 'over' && latch !== 'over') {
     latch = 'over';
     openOver();
@@ -3155,7 +3214,9 @@ function bindUI() {
     document.getElementById('btn-sound').textContent = soundOn ? 'Sound on' : 'Sound off';
     if (soundOn) ensureAudio();
   });
+  document.getElementById('btn-reel-skip').addEventListener('click', () => finishReel());
   document.getElementById('btn-pause').addEventListener('click', () => {
+    if (reelOpen) return;
     if (!live || document.body.dataset.mode !== 'play') return;
     if (document.body.dataset.card && document.body.dataset.card !== 'pause') return;
     paused = true;
@@ -3236,6 +3297,11 @@ function bindUI() {
         return;
       }
     }
+    if ((ev.code === 'Escape' || ev.code === 'KeyP') && reelOpen) {
+      ev.preventDefault();
+      finishReel();
+      return;
+    }
     if (ev.code === 'Escape' || ev.code === 'KeyP') {
       if (live && document.body.dataset.mode === 'play' && (!document.body.dataset.card || document.body.dataset.card === 'pause')) {
         ev.preventDefault();
@@ -3277,7 +3343,14 @@ document.body.dataset.card = '';
 window.__hop = {
   build: BUILD,
   start(id) { startLevel(id); },
-  setBot(on) { if (live) live.bot = !!on; },
+  setBot(on) {
+    if (live) live.bot = !!on;
+    if (on && reelOpen) {
+      reelDone = null;
+      closeReel();
+      paused = false;
+    }
+  },
   kill() { if (live) kill(live); },
   selfTest: selfTest,
   snapshot() {

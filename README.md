@@ -52,4 +52,4 @@ python scripts/playtest.py
 
 That needs a local server on port 8793 and Chrome. It runs the bank bot through all sixty levels, then clicks the phone UI.
 
-Build lh12. Original art and sounds.
+Build lh13. Original art and sounds.

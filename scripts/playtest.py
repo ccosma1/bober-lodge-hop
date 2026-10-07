@@ -5,7 +5,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-URL = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8793/?v=lh12"
+URL = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8793/?v=lh13"
 OUT = Path(__file__).resolve().parents[1] / "docs" / "lh1"
 
 
@@ -18,7 +18,7 @@ def main():
         page.set_default_timeout(300000)
         page.on("pageerror", lambda err: errors.append(str(err)))
         page.goto(URL, wait_until="networkidle")
-        page.wait_for_function("() => window.__hop && window.__hop.build === 'lh12'")
+        page.wait_for_function("() => window.__hop && window.__hop.build === 'lh13'")
         result = page.evaluate("() => window.__hop.selfTest()")
         (OUT / "selftest.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
         print(json.dumps(result["report"]))
@@ -27,7 +27,14 @@ def main():
         page.screenshot(path=str(OUT / "map-390.png"))
         page.click("#map-list button.next")
         page.wait_for_function("() => document.body.dataset.mode === 'play'")
-        page.wait_for_timeout(400)
+        page.wait_for_function("() => !document.getElementById('reel').hidden", timeout=5000)
+        page.wait_for_function(
+            "() => { const v = document.getElementById('reel-video'); return v.videoWidth === 720 && v.currentTime > 0; }",
+            timeout=8000,
+        )
+        page.screenshot(path=str(OUT / "reel-390.png"))
+        page.click("#btn-reel-skip")
+        page.wait_for_function("() => document.getElementById('reel').hidden")
         page.evaluate("() => window.__hop.setBot(true)")
         page.wait_for_timeout(1400)
         page.screenshot(path=str(OUT / "play-390.png"))
@@ -70,10 +77,23 @@ def main():
         page.click("#btn-pause")
         page.click("#btn-quit")
         page.wait_for_selector("#screen-map:not([hidden])")
+        page.evaluate("() => window.__hop.start('10-2')")
+        page.evaluate("() => window.__hop.setBot(true)")
+        page.wait_for_function("() => window.__hop.snapshot().mode === 'clearing'", timeout=30000)
+        page.evaluate("() => window.__hop.setBot(false)")
+        page.wait_for_function(
+            "() => { const v = document.getElementById('reel-video'); return !document.getElementById('reel').hidden && v.currentSrc.indexOf('end.mp4') >= 0 && v.videoWidth === 720 && v.currentTime > 0; }",
+            timeout=8000,
+        )
+        page.screenshot(path=str(OUT / "reel-end-390.png"))
+        page.click("#btn-reel-skip")
+        page.wait_for_function("() => document.getElementById('reel').hidden && window.__hop.snapshot().card === 'end'")
+        page.click("#btn-end-map")
+        page.wait_for_selector("#screen-map:not([hidden])")
         page.click("#btn-map-title")
         page.click("#btn-notes")
         notes = page.inner_text("#screen-notes")
-        if "lh12" not in notes or "Unofficial" not in notes or "No wallet" not in notes:
+        if "lh13" not in notes or "Unofficial" not in notes or "No wallet" not in notes:
             errors.append("notes missing fan line or build")
         page.click("#btn-notes-back")
         page.click("#btn-story")
