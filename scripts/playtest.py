@@ -5,7 +5,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-URL = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8793/?v=lh10"
+URL = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8793/?v=lh11"
 OUT = Path(__file__).resolve().parents[1] / "docs" / "lh1"
 
 
@@ -18,7 +18,7 @@ def main():
         page.set_default_timeout(300000)
         page.on("pageerror", lambda err: errors.append(str(err)))
         page.goto(URL, wait_until="networkidle")
-        page.wait_for_function("() => window.__hop && window.__hop.build === 'lh10'")
+        page.wait_for_function("() => window.__hop && window.__hop.build === 'lh11'")
         result = page.evaluate("() => window.__hop.selfTest()")
         (OUT / "selftest.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
         print(json.dumps(result["report"]))
@@ -48,7 +48,7 @@ def main():
         page.screenshot(path=str(OUT / "mill-390.png"))
         page.evaluate("() => window.__hop.start('3-1')")
         page.evaluate("() => window.__hop.setBot(true)")
-        page.wait_for_function("() => window.__hop.snapshot().x > 1520", timeout=25000)
+        page.wait_for_function("() => window.__hop.snapshot().x > 1520", timeout=45000)
         page.wait_for_timeout(250)
         page.screenshot(path=str(OUT / "duck-390.png"))
         page.evaluate("() => window.__hop.start('4-1')")
@@ -73,7 +73,7 @@ def main():
         page.click("#btn-map-title")
         page.click("#btn-notes")
         notes = page.inner_text("#screen-notes")
-        if "lh10" not in notes or "Unofficial" not in notes or "No wallet" not in notes:
+        if "lh11" not in notes or "Unofficial" not in notes or "No wallet" not in notes:
             errors.append("notes missing fan line or build")
         page.click("#btn-notes-back")
         page.click("#btn-story")

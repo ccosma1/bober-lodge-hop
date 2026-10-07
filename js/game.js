@@ -1,5 +1,5 @@
-/* Bober Burrow Hop lh10 — original bank hop. No borrowed characters or tunes. */
-const BUILD = 'lh10';
+/* Bober Burrow Hop lh11 — original bank hop. No borrowed characters or tunes. */
+const BUILD = 'lh11';
 const TILE = 32;
 let VIEW_W = 224;
 let VIEW_H = 360;
@@ -2763,12 +2763,12 @@ const MUSEUM = [
   { img: 'assets/museum/mill.jpg', tag: 'Bank', name: 'Brick Mill', copy: 'The mill chewed the path into bricks. Scaffolds hang over the wheel.' },
   { img: 'assets/museum/spill.jpg', tag: 'Bank', name: 'Spillway', copy: 'The water is in a hurry. The logs are not.' },
   { img: 'assets/museum/bell-lit.jpg', tag: 'Home', name: 'The Bell', copy: 'Ring it once. It lights. The river does not rise yet.' },
-  { img: 'assets/sprites/leaper.png', tag: 'Reds', name: 'Leaper', copy: 'A red kit that hops the cedar shade. Stomp him on the flat.' },
-  { img: 'assets/sprites/goose.png', tag: 'Reds', name: 'Goose', copy: 'Long neck, cream body, orange bill. Spits bubbles faster than a duck.' },
-  { img: 'assets/sprites/nipper.png', tag: 'Reds', name: 'Nipper', copy: 'Low and angry. Runs at Bober when he gets close.' },
-  { img: 'assets/sprites/tumbler.png', tag: 'Reds', name: 'Tumbler', copy: 'A round barked log. Comes rolling when Bober is near.' },
-  { img: 'assets/sprites/icer.png', tag: 'Reds', name: 'Icer', copy: 'Frost on the fur. Slides the frozen bank faster than a kit.' },
-  { img: 'assets/sprites/mason.png', tag: 'Reds', name: 'Mason', copy: 'Stands on the dam and throws a clay brick straight.' },
+  { img: 'assets/museum/leaper.jpg', tag: 'Reds', name: 'Leaper', copy: 'A red kit that hops the cedar shade. Stomp him on the flat.' },
+  { img: 'assets/museum/goose.jpg', tag: 'Reds', name: 'Goose', copy: 'Long neck, cream body, orange bill. Spits bubbles faster than a duck.' },
+  { img: 'assets/museum/nipper.jpg', tag: 'Reds', name: 'Nipper', copy: 'Low and angry. Runs at Bober when he gets close.' },
+  { img: 'assets/museum/tumbler.jpg', tag: 'Reds', name: 'Tumbler', copy: 'A round barked log. Comes rolling when Bober is near.' },
+  { img: 'assets/museum/icer.jpg', tag: 'Reds', name: 'Icer', copy: 'Frost on the fur. Slides the frozen bank faster than a kit.' },
+  { img: 'assets/museum/mason.jpg', tag: 'Reds', name: 'Mason', copy: 'Stands on the dam and throws a clay brick straight.' },
   { img: 'assets/museum/dam.jpg', tag: 'Upstream', name: 'Red Dam', copy: 'Logs, kits, and acorns stacked until the river stops.' },
   { img: 'assets/museum/source.jpg', tag: 'Upstream', name: 'The Source', copy: 'The spring under the pines. Clear the rope and the water comes home.' }
 ];
