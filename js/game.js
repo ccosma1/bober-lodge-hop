@@ -1,5 +1,5 @@
-/* Bober Burrow Hop lh11 — original bank hop. No borrowed characters or tunes. */
-const BUILD = 'lh11';
+/* Bober Burrow Hop lh12 — original bank hop. No borrowed characters or tunes. */
+const BUILD = 'lh12';
 const TILE = 32;
 let VIEW_W = 224;
 let VIEW_H = 360;
@@ -41,6 +41,22 @@ const FOOT = {
   bober: 0.629, cap: 0.629, sap: 0.629, kit: 0.594, duck: 0.417, lockjaw: 0.522,
   leaper: 0.329, goose: 0.409, nipper: 0.601, icer: 0.541, mason: 0.600
 };
+// Tail strip ends before the rump, the hat, or the back. hipX/hipY are the joint.
+const RIG = {
+  bober: { cut: 0.442, hipX: 0.448, hipY: 0.855 },
+  sap: { cut: 0.442, hipX: 0.448, hipY: 0.855 },
+  cap: { cut: 0.422, hipX: 0.424, hipY: 0.871 },
+  kit: { cut: 0.302, hipX: 0.306, hipY: 0.748 },
+  lockjaw: { cut: 0.302, hipX: 0.306, hipY: 0.845 },
+  mason: { cut: 0.302, hipX: 0.306, hipY: 0.749 }
+};
+// Drop the painted bubble so the live bubble is the one that grows and leaves.
+const TRIM = { duck: 0.70, goose: 0.70 };
+// Head strip ends in the neck, so a nod does not swing the feet.
+const NECK = {
+  duck: { cut: 0.37, hx: 0.48, hy: 0.36 },
+  goose: { cut: 0.47, hx: 0.48, hy: 0.45 }
+};
 
 function loadArt() {
   ['bober', 'cap', 'sap', 'kit', 'loghead', 'duck', 'lockjaw', 'pine', 'acorn', 'bell', 'grass', 'brick', 'bark',
@@ -55,13 +71,32 @@ function artReady(img) {
   return !!(img && img.complete && img.naturalWidth > 0);
 }
 
+function drawSlice(img, fx0, fx1, fy0, fy1, foot, dw, dh) {
+  const sw = img.naturalWidth;
+  const sh = img.naturalHeight;
+  const sx = Math.max(0, Math.round(fx0 * sw));
+  const ex = Math.min(sw, Math.round(fx1 * sw));
+  const sy = Math.max(0, Math.round(fy0 * sh));
+  const ey = Math.min(sh, Math.round(fy1 * sh));
+  const sww = Math.max(1, ex - sx);
+  const shh = Math.max(1, ey - sy);
+  ctx.drawImage(img, sx, sy, sww, shh, (sx / sw - foot) * dw, (sy / sh) * dh - dh, (sww / sw) * dw, (shh / sh) * dh);
+}
+
 function blit(name, cx, footY, dw, dh, face, squash, motion) {
   const img = ART[name];
   if (!artReady(img)) return false;
   const foot = FOOT[name] || 0.5;
   const m = motion || {};
   const lift = Math.max(0, -(m.bob || 0));
-  const shadow = Math.max(0.42, 1 - lift / 9);
+  const shadow = Math.max(0.42, 1 - lift / 10);
+  const rig = RIG[name];
+  const trim = TRIM[name];
+  // Poses store a lift as a negative angle. After the facing flip, the
+  // image-left tail only rises when the rotation matches the facing.
+  let tail = -(m.tail || 0);
+  if (tail > 0.55) tail = 0.55;
+  if (tail < -0.05) tail = -0.05;
   ctx.save();
   ctx.translate(cx, footY);
   ctx.fillStyle = 'rgba(26,16,40,' + (0.16 * shadow) + ')';
@@ -71,11 +106,86 @@ function blit(name, cx, footY, dw, dh, face, squash, motion) {
   ctx.translate(m.sway || 0, m.bob || 0);
   ctx.rotate(m.lean || 0);
   ctx.scale(face || 1, 1);
+  ctx.rotate(m.pitch || 0);
   const s = squash || 0;
   ctx.scale(1 + s * 0.35, 1 - s * 0.22);
-  ctx.drawImage(img, -dw * foot, -dh, dw, dh);
+  const neck = NECK[name];
+  if (rig) {
+    const hx = (rig.hipX - foot) * dw;
+    const hy = (rig.hipY - 1) * dh;
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.rotate(tail * (face || 1));
+    ctx.translate(-hx, -hy);
+    drawSlice(img, 0, rig.cut + 0.004, 0, 1, foot, dw, dh);
+    ctx.restore();
+    drawSlice(img, rig.cut - 0.018, trim || 1, 0, 1, foot, dw, dh);
+  } else if (neck) {
+    const ang = m.neck || 0;
+    const nx = (neck.hx - foot) * dw;
+    const ny = (neck.hy - 1) * dh;
+    drawSlice(img, 0, trim || 1, neck.cut - 0.02, 1, foot, dw, dh);
+    ctx.save();
+    ctx.translate(nx, ny);
+    ctx.rotate(ang * (face || 1));
+    ctx.translate(-nx, -ny);
+    drawSlice(img, 0, trim || 1, 0, neck.cut + 0.02, foot, dw, dh);
+    ctx.restore();
+  } else {
+    drawSlice(img, 0, trim || 1, 0, 1, foot, dw, dh);
+  }
   ctx.restore();
   return true;
+}
+
+function beaverPose(p) {
+  const face = p.face || 1;
+  const moving = p.grounded && Math.abs(p.vx) > 20;
+  let bob = 0;
+  let sway = 0;
+  let lean = (p.pose || 0) * 0.07;
+  let squash = 0;
+  let pitch = 0;
+  let tail = -0.08;
+  if (!p.grounded) {
+    if (p.vy < -220) {
+      bob = -1.2;
+      squash = -0.14;
+      pitch = -0.045;
+      tail = -0.34;
+    } else if (p.vy < 50) {
+      squash = -0.04;
+      pitch = -0.012;
+      tail = -0.14;
+    } else {
+      squash = 0.06;
+      pitch = 0.03;
+      tail = -0.06;
+    }
+    sway = (p.pose || 0) * 0.45;
+  } else if (moving) {
+    const u = Math.sin(p.run);
+    const lift = Math.pow(Math.max(0, -u), 1.15);
+    bob = -lift * 4.6;
+    sway = Math.sin(p.run * 2) * 1.05;
+    squash = (1 - lift) * 0.08 - lift * 0.07;
+    pitch = u * 0.028;
+    tail = -0.02 - lift * 0.42;
+    lean += face * lift * 0.02;
+  } else {
+    const breath = Math.sin(animT * 2.1);
+    bob = -Math.max(0, breath) * 1.1;
+    sway = Math.sin(animT * 1.15) * 0.35;
+    squash = Math.max(0, breath) * 0.03;
+    pitch = breath * 0.01;
+    tail = -0.1 + Math.sin(animT * 1.45) * 0.16;
+  }
+  if (p.grounded && p.squash > 0.02) {
+    squash = p.squash;
+    pitch += 0.04;
+    tail = Math.min(tail, -0.16);
+  }
+  return { bob: bob, sway: sway, lean: lean, squash: squash, pitch: pitch, tail: tail };
 }
 
 function layoutView() {
@@ -724,13 +834,13 @@ function stepPlayer(state, input) {
   }
   p.wasGround = p.grounded;
   if (hit.ceiling) tryHit(state, hit.ceiling.tx, hit.ceiling.ty);
-  if (p.grounded && Math.abs(p.vx) > 24) {
-    p.run += STEP * (12.5 + Math.min(4, Math.abs(p.vx) / 55));
+  if (p.grounded && Math.abs(p.vx) > 18) {
+    p.run += Math.abs(p.vx) * STEP * (Math.PI * 2) / 70;
   }
   const aim = clamp(p.vx / RUN, -1, 1);
   p.pose += (aim - p.pose) * Math.min(1, STEP * 7);
   if (p.grounded && Math.abs(p.vx) > 50) {
-    const mark = Math.floor(p.run * 2);
+    const mark = Math.floor(p.run / (Math.PI * 2));
     if (mark !== p.dustMark) {
       p.dustMark = mark;
       state.parts.push({
@@ -856,6 +966,10 @@ function stepEnemy(state, e) {
   e.y += vy * STEP;
   const hit = resolveY(state, e, vy);
   e.grounded = hit.grounded;
+  if (e.grounded && Math.abs(e.vx) > 10) {
+    const stride = e.kind === 'nipper' ? 18 : (e.kind === 'kit' ? 20 : (e.kind === 'icer' ? 48 : (e.kind === 'leaper' ? 34 : (e.kind === 'grub' ? 14 : 32))));
+    e.gait = (e.gait || 0) + Math.abs(e.vx) * STEP * (Math.PI * 2) / stride;
+  }
   if (e.kind === 'drip' && e.state === 'fall' && e.grounded) {
     e.state = 'walk';
     e.speed = 48;
@@ -1582,38 +1696,10 @@ function drawWorld(state) {
   const p = state.player;
   const blink = p.invuln > 0 && Math.floor(p.invuln * 14) % 2 === 0;
   if (!blink) {
-    const speed = Math.abs(p.vx);
-    const moving = p.grounded && speed > 20;
-    const step = Math.sin(p.run);
-    let bob = 0;
-    let sway = 0;
-    let lean = (p.pose || 0) * 0.035;
-    let squash = p.squash || 0;
-    if (moving) {
-      const plant = step >= 0;
-      bob = plant ? step * 0.4 : step * 3.6;
-      sway = step * 0.7;
-      lean += p.face * (plant ? 0.012 : 0.028);
-      if (!p.squash) squash = plant ? 0.05 : -0.045;
-    } else if (p.grounded) {
-      bob = Math.sin(animT * 1.7) * 0.7;
-      sway = Math.sin(animT * 1.1) * 0.35;
-      if (!p.squash) squash = Math.sin(animT * 1.7) * 0.02;
-    } else if (p.vy < -200) {
-      bob = -2.4;
-      sway = (p.pose || 0) * 0.8;
-      squash = -0.07;
-    } else if (p.vy < 40) {
-      bob = -0.4;
-      sway = (p.pose || 0) * 0.4;
-      squash = 0.02;
-    } else {
-      bob = 1.1;
-      sway = (p.pose || 0) * 0.5;
-      squash = 0.045;
-    }
+    const pose = beaverPose(p);
     drawBeaver(p.x, p.y, p.w, p.h, p.face, {
-      form: p.form, phase: p.run, squash: squash, bob: bob, lean: lean, sway: sway, color: '#8b5a3c'
+      form: p.form, phase: p.run, squash: pose.squash, bob: pose.bob, lean: pose.lean,
+      sway: pose.sway, pitch: pose.pitch, tail: pose.tail, color: '#8b5a3c'
     });
   }
   for (let i = 0; i < state.parts.length; i++) {
@@ -2300,23 +2386,25 @@ function drawPole(state) {
 }
 
 function drawGrub(e) {
-  const wiggle = Math.sin(animT * 8 + e.x * 0.05) * 1.4;
+  const phase = e.gait || animT * 5;
   ctx.save();
-  ctx.translate(e.x + e.w / 2, e.y + e.h - 2 + wiggle);
+  ctx.translate(e.x + e.w / 2, e.y + e.h - 2);
   ctx.fillStyle = '#f3e6cf';
   for (let i = 0; i < 4; i++) {
+    const wave = Math.sin(phase - i * 0.85);
     ctx.beginPath();
-    ctx.ellipse(-10 + i * 7, 0, 5.2, 4.2 - i * 0.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(-10 + i * 7 + wave * 1.1, wave * 2.6, 5.2, 4.2 - i * 0.2, wave * 0.16, 0, Math.PI * 2);
     ctx.fill();
   }
+  const head = Math.sin(phase - 3.2);
   ctx.fillStyle = '#6b442c';
   ctx.beginPath();
-  ctx.arc(12, -1, 4.2, 0, Math.PI * 2);
+  ctx.arc(12 + head * 0.7, -1 + head * 1.5, 4.2, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = '#1a1028';
   ctx.beginPath();
-  ctx.arc(13.2, -2, 0.9, 0, Math.PI * 2);
-  ctx.arc(11.2, -2, 0.9, 0, Math.PI * 2);
+  ctx.arc(13.2 + head * 0.7, -2 + head * 1.5, 0.9, 0, Math.PI * 2);
+  ctx.arc(11.2 + head * 0.7, -2 + head * 1.5, 0.9, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = '#c4a574';
   ctx.lineWidth = 1;
@@ -2333,6 +2421,19 @@ function drawGrub(e) {
 
 function drawDrip(e) {
   const hang = e.state === 'hang';
+  ctx.save();
+  if (hang) {
+    const pulse = 1 + Math.sin(animT * 4.2 + e.x * 0.05) * 0.1;
+    ctx.translate(e.x + e.w / 2, e.y);
+    ctx.scale(1 / pulse, pulse);
+    ctx.translate(-(e.x + e.w / 2), -e.y);
+  } else if (!e.grounded) {
+    ctx.translate(e.x + e.w / 2, e.y);
+    ctx.scale(0.88, 1.16);
+    ctx.translate(-(e.x + e.w / 2), -e.y);
+  } else {
+    ctx.translate(Math.sin(e.gait || 0) * 0.7, -Math.abs(Math.sin(e.gait || 0)) * 2.2);
+  }
   ctx.fillStyle = hang ? '#7dce6a' : '#e7d7b8';
   ctx.beginPath();
   ctx.ellipse(e.x + e.w / 2, e.y + e.h * 0.55, e.w * 0.42, e.h * 0.46, 0, 0, Math.PI * 2);
@@ -2350,6 +2451,7 @@ function drawDrip(e) {
     ctx.lineTo(e.x + e.w / 2, e.y - 10);
     ctx.stroke();
   }
+  ctx.restore();
 }
 
 function drawEnemy(state, e) {
@@ -2389,7 +2491,7 @@ function drawEnemy(state, e) {
   const color = e.kind === 'boss' ? '#c44536' : '#d4533c';
   drawBeaver(e.x, e.y, e.w, e.h, e.face, {
     form: 'small',
-    phase: animT * 8,
+    phase: e.gait || 0,
     color: color,
     angry: !painted,
     boss: e.kind === 'boss',
@@ -2399,7 +2501,9 @@ function drawEnemy(state, e) {
     bob: gait.bob,
     lean: gait.lean,
     sway: gait.sway,
-    squash: gait.squash
+    squash: gait.squash,
+    pitch: gait.pitch,
+    tail: gait.tail
   });
   if (e.kind === 'boss') {
     ctx.fillStyle = '#f6e7c1';
@@ -2419,42 +2523,60 @@ function drawEnemy(state, e) {
   }
 }
 
+function boundGait(g, face, hop, lean, tailLift) {
+  const u = Math.sin(g || 0);
+  const lift = Math.pow(Math.max(0, -u), 1.15);
+  return {
+    bob: -lift * hop,
+    lean: face * lean,
+    squash: (1 - lift) * 0.07 - lift * 0.05,
+    sway: Math.sin((g || 0) * 2) * 1.1,
+    pitch: u * 0.045,
+    tail: -tailLift - lift * 0.16
+  };
+}
+
 function enemyGait(e) {
   const face = e.face || 1;
+  const g = e.gait || 0;
   if (e.kind === 'leaper') {
     if (!e.grounded) {
       const rising = e.vy < -40;
-      return { bob: rising ? -6.2 : 3.4, lean: face * 0.08, squash: rising ? -0.2 : 0.12, sway: face * 1.2 };
+      return { bob: rising ? -1.2 : 0.6, lean: face * 0.05, squash: rising ? -0.1 : 0.08, sway: 0, pitch: rising ? -0.07 : 0.06, tail: rising ? -0.22 : -0.06 };
     }
-    const step = Math.sin(animT * 7 + e.x * 0.02);
-    return { bob: -Math.abs(step) * 3.2, lean: face * 0.05 + step * 0.1, squash: Math.cos(animT * 7) > 0.45 ? 0.1 : 0, sway: step * 2 };
+    if ((e.cool || 1) < 0.28) {
+      return { bob: 0.8, lean: face * 0.03, squash: 0.14, sway: 0, pitch: 0.08, tail: -0.24 };
+    }
+    return boundGait(g, face, 2.4, 0.06, 0.1);
   }
-  if (e.kind === 'nipper') {
-    const step = Math.sin(animT * 16 + e.x * 0.04);
-    return { bob: -Math.abs(step) * 2.4, lean: face * 0.18, squash: Math.cos(animT * 16) > 0.2 ? 0.1 : -0.04, sway: step * 2.2 };
-  }
+  if (e.kind === 'nipper') return boundGait(g, face, 2.6, 0.06, 0.16);
   if (e.kind === 'icer') {
-    return { bob: Math.sin(animT * 4) * 0.8, lean: face * 0.16, squash: 0.08, sway: Math.sin(animT * 8) * 1.1 };
+    const pose = boundGait(g, face, 0.55, 0.04, 0.06);
+    pose.sway = Math.sin((g || 0) * 2) * 2.1;
+    pose.squash = 0.015;
+    return pose;
   }
   if (e.kind === 'boss') {
     if (!e.grounded) {
       const rising = e.vy < -40;
-      return { bob: rising ? -3.4 : 2.2, lean: face * 0.05, squash: rising ? -0.1 : 0.08, sway: 0 };
+      return { bob: rising ? -1.6 : 0.8, lean: face * 0.03, squash: rising ? -0.1 : 0.1, sway: 0, pitch: rising ? -0.06 : 0.06, tail: rising ? -0.22 : -0.04 };
     }
-    const breath = Math.sin(animT * 2.1);
-    return { bob: breath * 0.9, lean: face * 0.04, squash: breath * 0.04, sway: 0 };
+    if ((e.cool || 1) < 0.4) {
+      return { bob: 1.2, lean: face * 0.02, squash: 0.12, sway: 0, pitch: 0.07, tail: -0.22 };
+    }
+    const breath = Math.sin(animT * 1.7);
+    return { bob: breath * 0.9, lean: face * 0.03, squash: breath * 0.03, sway: 0, pitch: breath * 0.015, tail: Math.sin(animT * 1.25) * -0.14 };
   }
-  const step = Math.sin(animT * 8 + e.x * 0.03);
-  return { bob: -Math.abs(step) * 3.1, lean: face * 0.08 + step * 0.12, squash: Math.cos(animT * 8) > 0.5 ? 0.1 : 0, sway: step * 2.1 };
+  return boundGait(g, face, 3.1, 0.08, 0.12);
 }
 
 function drawDuck(e) {
-  const step = Math.sin(animT * 5.2 + e.x * 0.02);
-  const bob = -Math.abs(step) * 3.4 + Math.sin(animT * 2.2) * 1.2;
-  const sway = step * 2.6;
-  const lean = step * 0.12;
-  const squash = Math.cos(animT * 5.2) > 0.4 ? 0.08 : -0.03;
-  if (blit('duck', e.x + e.w / 2, e.y + e.h, 66, 60, e.face || -1, squash, { bob: bob, lean: lean, sway: sway })) return;
+  const nod = Math.sin(animT * 1.8 + e.x * 0.01);
+  const wind = Math.max(0, 1 - (e.cool || 0) / 2.05);
+  const up = Math.max(0, -nod);
+  if (blit('duck', e.x + e.w / 2, e.y + e.h, 66, 60, e.face || -1, up * 0.025 + wind * 0.14, {
+    bob: -up * 1.1, lean: 0, sway: nod * 0.3, neck: nod * 0.2 + wind * 0.18
+  })) return;
   ctx.save();
   ctx.translate(e.x + e.w / 2, e.y + e.h);
   ctx.scale(e.face || -1, 1);
@@ -2500,31 +2622,40 @@ function drawDuck(e) {
 }
 
 function drawGoose(e) {
-  const neck = Math.sin(animT * 2.4 + e.x * 0.01);
-  const bob = Math.sin(animT * 3.1) * 2.6;
-  const squash = 0.06 * Math.sin(animT * 3.1);
-  if (blit('goose', e.x + e.w / 2, e.y + e.h, 74, 88, e.face || -1, squash, { bob: bob, lean: neck * 0.14, sway: neck * 3.4 })) return;
+  const nod = Math.sin(animT * 1.35 + e.x * 0.01);
+  const wind = Math.max(0, 1 - (e.cool || 0) / 1.45);
+  const up = Math.max(0, -nod);
+  if (blit('goose', e.x + e.w / 2, e.y + e.h, 74, 88, e.face || -1, up * 0.02 + wind * 0.1, {
+    bob: -up * 1.0, lean: 0, sway: nod * 0.25, neck: nod * 0.26 + wind * 0.14
+  })) return;
   drawDuck(e);
 }
 
 function drawMason(e) {
-  const breath = Math.sin(animT * 1.7 + e.x * 0.01);
-  if (blit('mason', e.x + e.w / 2, e.y + e.h, 62, 70, e.face || -1, breath * 0.04, { bob: breath * 0.85, lean: Math.sin(animT * 0.8) * 0.025, sway: breath * 0.4 })) return;
+  const breath = Math.sin(animT * 1.6 + e.x * 0.01);
+  const wind = Math.max(0, 1 - (e.cool || 0) / 1.8);
+  if (blit('mason', e.x + e.w / 2, e.y + e.h, 62, 70, e.face || -1, Math.max(0, breath) * 0.02 + wind * 0.14, { bob: -Math.max(0, breath) * 0.7, lean: (e.face || -1) * wind * 0.035, sway: breath * 0.25, pitch: wind * 0.03, tail: -0.08 + breath * 0.14 - wind * 0.18 })) return;
   drawBeaver(e.x, e.y, e.w, e.h, e.face, { angry: true, color: '#d4533c', bob: breath * 0.85 });
+}
+
+function drawTumble(img, e, dw, dh) {
+  const rolling = e.state === 'roll';
+  const hw = dw / 2;
+  const hh = dh / 2;
+  const ang = rolling ? e.x / hh : Math.sin(animT * 2.2 + e.x * 0.02) * 0.05;
+  const extent = rolling ? hw * Math.abs(Math.sin(ang)) + hh * Math.abs(Math.cos(ang)) : hh;
+  ctx.save();
+  ctx.translate(e.x + e.w / 2, e.y + e.h - extent);
+  ctx.rotate(ang);
+  if (!rolling) ctx.scale(e.face || 1, 1);
+  ctx.drawImage(img, -hw, -hh, dw, dh);
+  ctx.restore();
 }
 
 function drawTumbler(e) {
   const img = ART.tumbler;
   if (artReady(img)) {
-    const rolling = e.state === 'roll';
-    const step = Math.sin(animT * 5 + e.x * 0.02);
-    ctx.save();
-    ctx.translate(e.x + e.w / 2 + (rolling ? 0 : step * 0.8), e.y + e.h / 2 + 2 + (rolling ? 0 : -Math.abs(step) * 1.4));
-    if (rolling) ctx.rotate(e.x * 0.05);
-    else ctx.rotate(step * 0.06);
-    ctx.scale(e.face || 1, 1);
-    ctx.drawImage(img, -39, -24, 78, 48);
-    ctx.restore();
+    drawTumble(img, e, 78, 48);
     return;
   }
   drawRoller(e);
@@ -2532,15 +2663,7 @@ function drawTumbler(e) {
 
 function drawRoller(e) {
   if (artReady(ART.loghead)) {
-    const rolling = e.state === 'roll';
-    const step = Math.sin(animT * 4 + e.x * 0.02);
-    ctx.save();
-    ctx.translate(e.x + e.w / 2, e.y + e.h / 2 + 2 + (rolling ? 0 : -Math.abs(step) * 0.8));
-    if (rolling) ctx.rotate(e.x * 0.05);
-    else ctx.rotate(step * 0.03);
-    ctx.scale(e.face || 1, 1);
-    ctx.drawImage(ART.loghead, -36, -22, 72, 42);
-    ctx.restore();
+    drawTumble(ART.loghead, e, 72, 42);
     return;
   }
   ctx.save();
@@ -2580,7 +2703,7 @@ function drawBeaver(x, y, w, h, face, opt) {
   else if (o.angry) { sprite = 'kit'; dw = 48; dh = 50; }
   else if (o.form === 'sap') { sprite = 'sap'; dw = 73; dh = 64; }
   else if (o.form === 'cap') { sprite = 'cap'; dw = 73; dh = 69; }
-  if (blit(sprite, x + w / 2, y + h, dw, dh, face || 1, o.squash || 0, { bob: o.bob || 0, lean: o.lean || 0, sway: o.sway || 0 })) return;
+  if (blit(sprite, x + w / 2, y + h, dw, dh, face || 1, o.squash || 0, { bob: o.bob || 0, lean: o.lean || 0, sway: o.sway || 0, pitch: o.pitch || 0, tail: o.tail || 0, neck: o.neck || 0 })) return;
   ctx.save();
   ctx.translate(x + w / 2, y + h);
   ctx.scale(face || 1, 1);
@@ -2698,6 +2821,7 @@ function drawBeaver(x, y, w, h, face, opt) {
   }
   ctx.restore();
 }
+
 
 function render() {
   if (document.body.dataset.mode === 'play') {
