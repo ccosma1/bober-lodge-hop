@@ -1,5 +1,5 @@
-/* Bober Burrow Hop lh13 — original bank hop. No borrowed characters or tunes. */
-const BUILD = 'lh13';
+/* Bober Burrow Hop lh14 — original bank hop. No borrowed characters or tunes. */
+const BUILD = 'lh14';
 const TILE = 32;
 let VIEW_W = 328;
 let VIEW_H = 360;
@@ -1405,37 +1405,58 @@ function drawCloud(x, y, s) {
 }
 
 function treeLineY(state) {
-  let bestY = state.h - 2;
-  let best = 0;
-  for (let y = 0; y < state.h; y++) {
-    let n = 0;
-    const row = state.rows[y];
-    for (let x = 0; x < row.length; x++) if (row[x] === '#') n++;
-    if (n > best) {
-      best = n;
-      bestY = y;
+  const tops = [];
+  for (let x = 0; x < state.w; x++) {
+    for (let y = 0; y < state.h; y++) {
+      const ch = state.rows[y][x];
+      if (ch === '#' || ch === 'B' || ch === '=' || ch === '?' || ch === '!' || ch === 'S' || ch === 'u') {
+        tops.push(y);
+        break;
+      }
     }
   }
-  return bestY * TILE;
+  if (!tops.length) return (state.h - 2) * TILE;
+  tops.sort(function (a, b) { return a - b; });
+  return tops[Math.floor(tops.length / 2)] * TILE;
 }
 
-function drawHillBand(state, y, amp, period, color, drift) {
+function hillOffset(x, period, amp) {
+  return Math.sin(x / period) * amp + Math.sin(x / (period * 0.37) + 1.7) * amp * 0.35;
+}
+
+function drawHillBand(state, y, amp, period, color) {
   const x0 = state.camX - 24;
   const x1 = state.camX + VIEW_W + 24;
   const bottom = state.h * TILE + 8;
   ctx.fillStyle = color;
   ctx.beginPath();
   ctx.moveTo(x0, bottom);
-  for (let x = x0; x <= x1; x += 8) {
-    const world = x + state.camX * drift;
-    const yy = y
-      + Math.sin(world / period + animT * 0.45) * amp
-      + Math.sin(world / (period * 0.41) + animT * 0.2) * amp * 0.45;
-    ctx.lineTo(x, yy);
-  }
+  for (let x = x0; x <= x1; x += 8) ctx.lineTo(x, y + hillOffset(x, period, amp));
   ctx.lineTo(x1, bottom);
   ctx.closePath();
   ctx.fill();
+}
+
+function drawStillWater(state, camX) {
+  const theme = state.theme;
+  const surface = state.def.ground || (state.h - 2);
+  const river = Math.min(state.h - 1, surface + 1);
+  const x0 = Math.max(0, Math.floor((camX - TILE) / TILE));
+  const x1 = Math.min(state.w - 1, Math.floor((camX + VIEW_W + TILE) / TILE));
+  for (let x = x0; x <= x1; x++) {
+    let y = state.h - 1;
+    if (state.rows[y][x] !== '.') continue;
+    while (y > river && state.rows[y - 1][x] === '.') y -= 1;
+    const top = y * TILE;
+    const deep = state.h * TILE + TILE;
+    const water = ctx.createLinearGradient(0, top, 0, top + TILE * 2);
+    water.addColorStop(0, theme.water);
+    water.addColorStop(1, theme.night ? '#0c2433' : '#1d6f90');
+    ctx.fillStyle = water;
+    ctx.fillRect(x * TILE, top, TILE + 1, deep - top);
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.fillRect(x * TILE, top + 4, TILE + 1, 2);
+  }
 }
 
 function drawBirds() {
@@ -1626,56 +1647,30 @@ function drawWorld(state) {
   if (cave) drawRoots(state);
   const treeLine = treeLineY(state);
   if (!cave) {
+    const frontBase = treeLine - 2;
+    const frontAmp = 8;
+    const frontPeriod = 96;
     ctx.globalAlpha = 0.55;
-    drawHillBand(state, treeLine - 48, 26, 110, theme.hill2, 0.55);
-    ctx.globalAlpha = 0.72;
-    drawHillBand(state, treeLine - 10, 16, 72, theme.hill, 0.22);
+    drawHillBand(state, treeLine - 28, 10, 150, theme.hill2);
+    ctx.globalAlpha = 0.9;
+    drawHillBand(state, frontBase, frontAmp, frontPeriod, theme.hill);
     ctx.globalAlpha = 1;
     const treeName = theme.tree || 'pine';
     const reed = treeName === 'reed';
     const treeStep = reed ? 50 : 84;
     const treeBase = reed ? 150 : 168;
     for (let i = -1; i < Math.ceil(state.w * TILE / treeStep) + 1; i++) {
-      const foot = treeLine + (reed ? 86 : 34);
       const x = i * treeStep;
       if (x < camX - 160 || x > camX + VIEW_W + 160) continue;
+      const foot = frontBase + hillOffset(x, frontPeriod, frontAmp);
       ctx.save();
       ctx.translate(x, foot);
-      ctx.rotate(Math.sin(animT * 1.25 + i * 0.7) * (reed ? 0.08 : 0.055));
+      ctx.rotate(Math.sin(animT * 0.8 + i * 0.7) * 0.02);
       drawPine(0, 0, treeBase + (i % 4) * (reed ? 10 : 20), theme.hill, theme.hill2, treeName);
       ctx.restore();
     }
   }
-  const waterY = (state.h - 2) * TILE;
-  if (!cave) {
-  const water = ctx.createLinearGradient(0, waterY, 0, waterY + TILE * 2);
-  water.addColorStop(0, theme.water);
-  water.addColorStop(1, theme.night ? '#0c2433' : '#1d6f90');
-  ctx.fillStyle = water;
-  ctx.fillRect(camX - 40, waterY, VIEW_W + 80, TILE * 3);
-  ctx.strokeStyle = 'rgba(255,255,255,0.38)';
-  ctx.lineWidth = 1.3;
-  for (let row = 0; row < 4; row++) {
-    ctx.beginPath();
-    const y0 = waterY + 5 + row * 8;
-    const x0 = camX - 8;
-    const x1 = camX + VIEW_W + 8;
-    for (let x = x0; x <= x1; x += 6) {
-      const yy = y0 + Math.sin(x * 0.08 + animT * 3.1 + row) * 4.6;
-      if (x === x0) ctx.moveTo(x, yy);
-      else ctx.lineTo(x, yy);
-    }
-    ctx.stroke();
-  }
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  for (let i = 0; i < 10; i++) {
-    const fx = camX - 10 + ((i * 53 + animT * 34) % (VIEW_W + 30));
-    const fy = waterY + 8 + (i % 4) * 8 + Math.sin(animT * 3 + i) * 2;
-    ctx.beginPath();
-    ctx.ellipse(fx, fy, 6, 1.8, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  }
+  if (!cave) drawStillWater(state, camX);
   drawMotes(state);
   if (state.def.theme === 'rope' && !cave) drawRopes(state, treeLine);
   if (state.def.id === '3-2' || state.def.ending) drawLodge(state.w * TILE - 150, 5 * TILE);
@@ -2862,22 +2857,23 @@ function render() {
 }
 
 const STORY = [
-  { img: 'assets/museum/bell-dark.jpg', kicker: 'Before the hop', title: 'The quiet bell', copy: 'The lodge bell used to answer the river every evening. One night it stayed dark. The acorns that wake it were gone from the stoop.' },
-  { img: 'assets/museum/kit.jpg', kicker: 'The reds', title: 'What they carried', copy: 'Small red kits hauled those acorns up the bank. Logheads rolled behind them. A duck stood in the mud and would not move.' },
-  { img: 'assets/poster.jpg', kicker: 'Pine Bank', title: 'The mud knows him', copy: 'Bober left the lodge small. Cream belly, flat tail, two teeth. The mud still knew his feet, and the bank let him pass.' },
-  { img: 'assets/museum/cap.jpg', kicker: 'Stump Stairs', title: 'The lodge cap', copy: 'On the old stumps sat a yellow cap with a green sprig. Wear it and one hit glances off. Bricks break under his feet.' },
-  { img: 'assets/museum/mill.jpg', kicker: 'Brick Mill', title: 'The path, chewed', copy: 'The mill had chewed the path into bricks. Sap gathered in his cheek. He learned to spit a chip, and the mill coughed him out the far side.' },
-  { img: 'assets/museum/spill.jpg', kicker: 'The high wood', title: 'Water in a hurry', copy: 'Scaffolds sway. The spillway does not wait. He rides the moving log, hops the gaps, and keeps the cap.' },
-  { img: 'assets/museum/lockjaw.jpg', kicker: 'Bell Rope', title: 'Lockjaw', copy: 'Lockjaw sits on the rope and will not move. Three stomps, or a mouthful of sap. Then the rope is free.' },
-  { img: 'assets/museum/bell-lit.jpg', kicker: 'The rope', title: 'The bell, not the river', copy: 'Bober rings the bell. It lights. The river does not rise. The light shows the water is held upstream.' },
-  { img: 'assets/poster.jpg', kicker: 'Cedar Shade', title: 'A thin creek', copy: 'He follows the light along a cedar thread. Red leapers hop the shade. The water is still only a shine between roots.' },
-  { img: 'assets/museum/burrow.jpg', kicker: 'Under the bank', title: 'The root road', copy: 'A soft spot in the mud drops into a burrow. Root grubs crawl there. Rope crates hide a river stone, a cap, or another life. The bank above still goes on.' },
-  { img: 'assets/museum/duck.jpg', kicker: 'Reed Water', title: 'Long necks', copy: 'Reeds thicken. Ducks stand, and geese with long necks spit quicker bubbles. The creek is deeper here, and still not a river.' },
-  { img: 'assets/museum/mill.jpg', kicker: 'Clay Kiln', title: 'A second mill', copy: 'Another mill is still chewing the bank into bricks. Nippers run low and fast. He breaks what he must and keeps the thread.' },
-  { img: 'assets/museum/spill.jpg', kicker: 'Rope Run', title: 'Logs over the cut', copy: 'The creekbed is an empty cut. Scaffolds and tumblers cross it. He rides nothing he does not have to.' },
-  { img: 'assets/museum/bell-dark.jpg', kicker: 'Frost Bank', title: 'The creek is ice', copy: 'Snow sits on the pines. Icers slide the frozen thread. Under the ice, the water is still trying to come home.' },
-  { img: 'assets/museum/dam.jpg', kicker: 'Red Dam', title: 'What holds the river', copy: 'The reds stacked logs, kits, and acorns into a dam. Masons throw bricks from the top. The lake behind it is the river that never arrived.' },
-  { img: 'assets/museum/source.jpg', kicker: 'The Source', title: 'Water comes home', copy: 'Past the dam is the spring. A last keeper sits on the source rope. When he lets go, the water runs the whole way, and the lit bell finally has a river to answer.' }
+  { img: 'assets/museum/bell-dark.jpg', kicker: 'The job', title: 'The quiet bell', copy: 'The lodge bell rings when the river reaches it. The river stopped. The acorns that call the water were taken off the stoop, and the bell went dark.' },
+  { img: 'assets/museum/kit.jpg', kicker: 'Who did it', title: 'What they carried', copy: 'Red kits carried those acorns upstream. Logheads rolled after them. A duck held the mud. They stacked logs, clay, and acorns into a dam, and the river sits behind it.' },
+  { img: 'assets/museum/bober.jpg', kicker: 'World 1', title: 'Leave the lodge', copy: 'Bober starts small on Pine Bank. The mud is the road. High logs offer a second path. A ford of logs runs on the water where the bank breaks.' },
+  { img: 'assets/museum/cap.jpg', kicker: 'World 1', title: 'The lodge cap', copy: 'A yellow cap with a green sprig sits on the stumps. Wear it and one hit glances off. Bricks break under his feet. Stumps in the mud are jumped.' },
+  { img: 'assets/museum/mill.jpg', kicker: 'World 2', title: 'The chewed path', copy: 'The mill turned the path into bricks. Sap gathers in his cheek. Spit, or J, throws a chip. The far side of the mill is still the way upstream.' },
+  { img: 'assets/museum/spill.jpg', kicker: 'World 2', title: 'Ride the spillway', copy: 'What water is left is in a hurry. Moving logs cross it. He rides a log, then gets off on solid mud. The scaffolds are the air road.' },
+  { img: 'assets/museum/lockjaw.jpg', kicker: 'World 3', title: 'Free the rope', copy: 'Lockjaw sits on the bell rope and will not move. Three stomps, or a mouthful of sap, and he lets go. The rope is the bell.' },
+  { img: 'assets/museum/bell-lit.jpg', kicker: 'World 3', title: 'The bell lights', copy: 'The bell lights. The river does not rise. The light shows the water is still held at the dam. The rest of the hop follows that thin creek upstream.' },
+  { img: 'assets/museum/leaper.jpg', kicker: 'World 4', title: 'The cedar thread', copy: 'Leapers hop the cedar shade. The creek is only a shine. High logs, a water ford, and a soft spot into the roots are all ways through.' },
+  { img: 'assets/museum/burrow.jpg', kicker: 'Under', title: 'The root road', copy: 'A soft spot drops into a burrow. Grubs pace the clay. A crate can hide a stone, a cap, sap, or another life. The bank above still goes on.' },
+  { img: 'assets/museum/goose.jpg', kicker: 'World 5', title: 'Long necks', copy: 'The creek widens in the reeds. Ducks stand and spit. Geese spit faster. Hop the bubble. It is deeper here, and it is still not the river.' },
+  { img: 'assets/museum/nipper.jpg', kicker: 'World 6', title: 'The second mill', copy: 'The kiln is still chewing the bank into bricks. Nippers run low and fast. Climb the shelf or take the root road under the clay.' },
+  { img: 'assets/museum/tumbler.jpg', kicker: 'World 7', title: 'The empty cut', copy: 'The creekbed falls away. Tumblers roll the ropes. A moving log is the bridge. Wait for it, ride it, and step off onto mud.' },
+  { img: 'assets/museum/icer.jpg', kicker: 'World 8', title: 'The creek is ice', copy: 'Snow sits on the pines. Icers slide the frozen thread. Under the ice the water is still trying to reach the bell.' },
+  { img: 'assets/museum/mason.jpg', kicker: 'World 9', title: 'The dam', copy: 'This is the pile. Logs, kits, and acorns stacked until the river stopped. Masons throw bricks from the top. Hop the brick.' },
+  { img: 'assets/museum/dam.jpg', kicker: 'World 9', title: 'Crack the keep', copy: 'A keeper sits on the logs and will not let the water by. Beat him and the dam cracks. The spring is the last bank.' },
+  { img: 'assets/museum/source.jpg', kicker: 'World 10', title: 'Open the source', copy: 'One keeper holds the source rope. When he lets go, the water runs the creek, the spillway, and the mill. The lit bell finally has a river to answer.' }
 ];
 
 const MUSEUM = [
@@ -2980,7 +2976,18 @@ function setCard(name) {
 function renderMap() {
   const list = document.getElementById('map-list');
   list.innerHTML = '';
-  const worldName = ['', 'Pine opening', 'Brick mill', 'Bell rope', 'Cedar shade', 'Reed water', 'Clay kiln', 'Rope run', 'Frost bank', 'Red dam', 'The source'];
+  const worldName = ['',
+    'Pine bank. Leave the lodge.',
+    'Brick mill. Cross the chewed path.',
+    'Bell rope. Light the bell.',
+    'Cedar creek. Follow the thin water.',
+    'Reed water. Pass the long necks.',
+    'Clay kiln. Keep the thread.',
+    'Rope run. Cross the empty cut.',
+    'Frost bank. Slide the ice.',
+    'Red dam. This holds the river.',
+    'The source. Send the water home.'
+  ];
   let nextIndex = 0;
   for (let i = 0; i < LEVELS.length; i++) {
     if (!save.cleared[LEVELS[i].id]) { nextIndex = i; break; }

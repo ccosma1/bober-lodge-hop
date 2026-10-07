@@ -1,4 +1,4 @@
-/* Bober Burrow Hop lh13 — every bank is its own path, from the lodge bell to the source. */
+/* Bober Burrow Hop lh14 — every bank is its own path, from the lodge bell to the source. */
 const LEVELS = [];
 const TILE_CHARS = new Set(['.', '#', '=', 'B', '?', '!', 'S', 'u', 'C', 'K', 'R', 'D', 'J', 'P', 'F', 'M', '^', 'H', 'A', 'L', 'G', 'N', 'T', 'I', 'Q', 'X', 'U', 'V']);
 
@@ -22,6 +22,60 @@ function buildLevel(w, h, ground, paint) {
   return rows.map((row) => row.join(''));
 }
 
+function plantDen(set, x, surface, h) {
+  const floor = surface + 8;
+  const air = (col, y0, y1) => {
+    for (let y = y0; y < y1; y++) set(col, y, '.');
+  };
+  const solidFrom = (col, top) => {
+    for (let y = top; y < h; y++) set(col, y, '#');
+  };
+  for (let col = x; col < x + 2; col++) {
+    air(col, surface, floor);
+    set(col, floor, '#');
+  }
+  for (let col = x + 2; col < x + 14; col++) {
+    air(col, surface + 1, floor);
+    set(col, floor, '#');
+  }
+  set(x + 4, floor - 1, 'U');
+  set(x + 7, surface + 3, 'V');
+  set(x + 10, floor - 1, 'X');
+  set(x + 11, floor - 1, 'X');
+  const stair = [floor - 1, floor - 2, floor - 3, floor - 4];
+  for (let i = 0; i < stair.length; i++) {
+    const col = x + 14 + i;
+    air(col, surface + 1, stair[i]);
+    solidFrom(col, stair[i]);
+  }
+  air(x + 18, surface, surface + 3);
+  solidFrom(x + 18, surface + 3);
+  set(x + 19, surface, '=');
+  solidFrom(x + 19, surface + 1);
+}
+
+function plantSky(set, x, surface, n) {
+  const row = surface - 3;
+  for (let i = 0; i < n; i++) {
+    set(x + i, row, '=');
+    if (i % 2 === 0) set(x + i, row - 1, 'C');
+  }
+}
+
+function plantFord(set, x, surface, h, n) {
+  for (let col = x; col < x + n; col++) {
+    for (let y = surface; y < h; y++) set(col, y, '.');
+    set(col, surface, '=');
+  }
+}
+
+function plantPost(set, x, surface) {
+  set(x, surface - 1, '#');
+  set(x + 1, surface - 1, '#');
+  set(x, surface - 4, 'C');
+  set(x + 1, surface - 4, 'C');
+}
+
 function stage(meta, w, h, ground, paint) {
   const rows = buildLevel(w, h, ground, paint);
   LEVELS.push(Object.assign({ w: w, h: h, ground: ground, rows: rows }, meta));
@@ -31,12 +85,12 @@ stage({
   id: '1-1',
   world: 1,
   name: 'Pine Bank',
-  line: 'The mud still knows his feet.',
+  line: 'Leave the lodge. A root road, high logs, and a ford cross the bank.',
   hint: 'Hold jump. Land on the reds. Smash the crate.',
-  after: 'The bank lets him pass.',
-  time: 200,
+  after: 'Pine Bank lets him pass. The mill is next.',
+  time: 280,
   drops: { '18,11': 'stone', '19,11': 'stone' }
-}, 104, 14, 12, (set, fill) => {
+}, 168, 24, 12, (set, fill) => {
   set(3, 11, 'P');
   for (let i = 0; i < 5; i++) set(8 + i, 11, 'C');
   set(18, 11, 'X');
@@ -56,18 +110,23 @@ stage({
   fill(77, 9, 4, 1, '=');
   fill(82, 10, 4, 1, '=');
   for (let i = 0; i < 4; i++) set(90 + i, 11, 'C');
-  set(100, 11, 'F');
+  set(98, 11, 'K');
+  plantDen(set, 108, 12, 24);
+  plantSky(set, 130, 12, 8);
+  plantFord(set, 142, 12, 24, 8);
+  plantPost(set, 154, 12);
+  set(162, 11, 'F');
 });
 
 stage({
   id: '1-2',
   world: 1,
   name: 'Stump Stairs',
-  line: 'Old stumps mark where the river used to sit.',
-  after: 'The stumps are behind him.',
-  time: 210,
+  line: 'Stumps, a moving log, a root road, and a ford mark the old river.',
+  after: 'The stumps are behind him. The mill chewed the path.',
+  time: 280,
   drops: { '24,11': 'cap', '25,11': 'cap' }
-}, 112, 14, 12, (set, fill) => {
+}, 170, 24, 12, (set, fill) => {
   set(3, 11, 'P');
   set(8, 11, 'H');
   set(12, 9, '!');
@@ -79,24 +138,29 @@ stage({
     for (let k = 0; k <= i; k++) set(32 + i, 11 - k, '#');
   }
   set(35, 7, 'R');
+  set(40, 11, 'K');
   fill(46, 12, 1, 2, '.');
   fill(52, 12, 4, 2, '.');
   set(52, 12, 'M');
   set(68, 11, 'K');
   for (let i = 0; i < 4; i++) set(80 + i, 11, 'C');
   set(92, 11, 'K');
-  set(108, 11, 'F');
+  plantDen(set, 116, 12, 24);
+  plantSky(set, 138, 12, 8);
+  plantFord(set, 150, 12, 24, 8);
+  plantPost(set, 160, 12);
+  set(164, 11, 'F');
 });
 
 stage({
   id: '2-1',
   world: 2,
   name: 'Brick Mill',
-  line: 'The mill chewed the path into bricks.',
+  line: 'Cross the chewed bricks. Past the duck, a root road and a ford still climb.',
   after: 'The mill coughs him out the far side.',
-  time: 220,
+  time: 280,
   drops: { '44,11': 'sap', '45,11': 'sap' }
-}, 104, 14, 12, (set, fill) => {
+}, 172, 24, 12, (set, fill) => {
   set(3, 11, 'P');
   set(8, 11, 'A');
   for (let i = 0; i < 7; i++) set(14 + i, 9, i === 3 ? 'S' : 'B');
@@ -110,22 +174,28 @@ stage({
   set(66, 9, '!');
   set(82, 11, 'D');
   for (let i = 0; i < 3; i++) set(92 + i, 11, 'C');
-  set(100, 11, 'F');
+  plantDen(set, 108, 12, 24);
+  set(130, 11, 'K');
+  plantSky(set, 132, 12, 8);
+  plantFord(set, 144, 12, 24, 8);
+  plantPost(set, 156, 12);
+  set(164, 11, 'F');
 });
 
 stage({
   id: '2-2',
   world: 2,
   name: 'High Scaffolds',
-  line: 'Someone left a lodge cap on the scaffold.',
+  line: 'The scaffolds are the air road. A root road and a ford sit past the last log.',
   after: 'The scaffold sways, and he keeps going.',
-  time: 230,
+  time: 280,
   drops: { '12,13': 'stone', '13,13': 'stone' }
-}, 102, 16, 14, (set, fill) => {
+}, 168, 26, 14, (set, fill) => {
   set(3, 13, 'P');
   set(8, 13, 'H');
   set(12, 13, 'X');
   set(13, 13, 'X');
+  plantSky(set, 4, 14, 8);
   set(16, 11, '?');
   for (let i = 0; i < 4; i++) set(18 + i, 13, 'C');
   fill(28, 14, 47, 2, '.');
@@ -141,18 +211,22 @@ stage({
   fill(72, 12, 3, 1, '=');
   set(88, 13, 'K');
   for (let i = 0; i < 3; i++) set(92 + i, 13, 'C');
-  set(98, 13, 'F');
+  plantDen(set, 108, 14, 26);
+  set(132, 13, 'K');
+  plantFord(set, 140, 14, 26, 8);
+  plantPost(set, 152, 14);
+  set(160, 13, 'F');
 });
 
 stage({
   id: '3-1',
   world: 3,
   name: 'Spillway',
-  line: 'The water is in a hurry. The logs are not.',
-  after: 'The spillway did not take him.',
-  time: 220,
+  line: 'Ride the spillway log. Past the duck, a root road and a ford still climb.',
+  after: 'The spillway did not take him. The rope is next.',
+  time: 280,
   drops: { '26,11': 'stone', '27,11': 'stone' }
-}, 108, 14, 12, (set, fill) => {
+}, 176, 24, 12, (set, fill) => {
   set(3, 11, 'P');
   set(8, 11, 'A');
   for (let i = 0; i < 4; i++) set(12 + i, 11, 'C');
@@ -169,14 +243,19 @@ stage({
   set(72, 9, 'S');
   fill(84, 12, 1, 2, '.');
   set(94, 11, 'K');
-  set(104, 11, 'F');
+  plantDen(set, 112, 12, 24);
+  set(134, 11, 'K');
+  plantSky(set, 136, 12, 8);
+  plantFord(set, 148, 12, 24, 8);
+  plantPost(set, 160, 12);
+  set(168, 11, 'F');
 });
 
 stage({
   id: '3-2',
   world: 3,
   name: 'Bell Rope',
-  line: 'Lockjaw sits on the rope and will not move.',
+  line: 'Lockjaw sits on the rope. High logs are a second path over the start.',
   after: 'The bell is lit. The river does not rise.',
   time: 240,
   drops: { '24,11': 'stone', '25,11': 'stone' }
@@ -193,6 +272,7 @@ stage({
   set(24, 11, 'X');
   set(25, 11, 'X');
   for (let i = 0; i < 3; i++) set(27 + i, 11, 'C');
+  plantSky(set, 4, 12, 4);
 });
 
 const FOE = { kit: 'K', leaper: 'L', goose: 'G', duck: 'D', nipper: 'N', tumbler: 'T', icer: 'I', mason: 'Q', roller: 'R', grub: 'U', drip: 'V' };
@@ -239,7 +319,24 @@ function carveBurrow(rows, b, meta) {
   if (b.x + 21 >= rows[0].length) throw new Error(meta.id + ' burrow wide');
 }
 
+function dressScript(meta, script) {
+  const parts = meta.id.split('-');
+  const world = parseInt(parts[0], 10);
+  const n = parseInt(parts[1], 10);
+  const route = ['sky', 'ford', 'post'][(world + n) % 3];
+  const road = route === 'sky' ? ' High logs are a second road.'
+    : route === 'ford' ? ' A log ford runs on the water.'
+    : ' A stump sits in the mud.';
+  meta.line = meta.line.replace(/\s+$/, '').replace(/\.$/, '') + '.' + road;
+  if (script.indexOf('burrow') < 0 && (world + n) % 2 === 0) {
+    meta.line += ' A soft spot hides a root road.';
+    return script + ' burrowstone flat8 kit ' + route + ' flat4';
+  }
+  return script + ' flat6 pit flat4 kit ' + route + ' flat4';
+}
+
 function lay(meta, script) {
+  script = dressScript(meta, script);
   const H = 24;
   const GROUND = 13;
   const cols = [];
@@ -376,6 +473,42 @@ function lay(meta, script) {
         for (let i = 0; i < land; i++) push(fl);
       }
       for (let i = 0; i < 3; i++) push(fl);
+      return;
+    }
+    if (tok === 'sky') {
+      const fl = resumeFloor();
+      const air = Math.max(8, fl - 3);
+      pad(6);
+      for (let i = 0; i < 8; i++) {
+        const x = cols.length;
+        marks.push({ x: x, y: air, ch: '=' });
+        if (i % 2 === 0) ents.push({ x: x, ch: 'C', above: fl - (air - 1) });
+        push(fl);
+      }
+      for (let i = 0; i < 4; i++) push(fl);
+      return;
+    }
+    if (tok === 'ford') {
+      const fl = resumeFloor();
+      for (let i = 0; i < 6; i++) push(fl);
+      gapFromEnemy(8);
+      for (let i = 0; i < 8; i++) {
+        marks.push({ x: cols.length, y: fl, ch: '=' });
+        push(H);
+      }
+      for (let i = 0; i < 6; i++) push(fl);
+      return;
+    }
+    if (tok === 'post') {
+      pad(6);
+      gapFromEnemy(6);
+      const fl = resumeFloor();
+      const top = Math.max(9, fl - 1);
+      push(top);
+      ents.push({ x: cols.length - 1, ch: 'C', above: (fl - top) + 3 });
+      push(top);
+      ents.push({ x: cols.length - 1, ch: 'C', above: (fl - top) + 3 });
+      for (let i = 0; i < 4; i++) push(fl);
       return;
     }
     if (tok === 'wide') {
@@ -598,7 +731,7 @@ stage({
   world: 9,
   theme: 'dam',
   name: 'Dam Keep',
-  line: 'A keeper sits on the logs and will not let the water by.',
+  line: 'A keeper sits on the logs and will not let the water by. High logs hang over the start.',
   after: 'The dam cracks. The spring is still ahead.',
   time: 240,
   bossHp: 4,
@@ -621,6 +754,7 @@ stage({
   set(29, 11, 'X');
   set(30, 11, 'X');
   for (let i = 0; i < 3; i++) set(32 + i, 11, 'C');
+  plantSky(set, 4, 12, 4);
 });
 
 lay({ id: '10-1', world: 10, theme: 'source', name: 'Thin Spring', time: 280, hint: 'The spring is close. Smash the crate.', line: 'A crate, stones, a mason, a log, an icer, and a tumbler.', after: 'The thin spring leads to one last rope.' },
@@ -631,7 +765,7 @@ stage({
   world: 10,
   theme: 'source',
   name: 'The Source',
-  line: 'The source keeper holds the rope. The river is waiting on him.',
+  line: 'The source keeper holds the rope. High logs hang over the start.',
   after: 'The water comes home.',
   time: 240,
   ending: true,
@@ -655,6 +789,7 @@ stage({
   set(21, 7, 'B');
   set(28, 11, 'J');
   for (let i = 0; i < 4; i++) set(33 + i, 11, 'C');
+  plantSky(set, 4, 12, 4);
 });
 
 (function validateLevels() {
